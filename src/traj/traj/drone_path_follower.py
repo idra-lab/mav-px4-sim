@@ -39,7 +39,7 @@ from rclpy.node import Node
 from rclpy.clock import Clock
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 
-from tf_transformations import euler_from_quaternion
+from tf_transformations import euler_from_quaternion, quaternion_matrix
 
 from px4_msgs.msg import OffboardControlMode
 from px4_msgs.msg import TrajectorySetpoint
@@ -183,6 +183,26 @@ class DronePathFollower(Node):
                     y = (setpoint_f.pose.position.y - setpoint_i.pose.position.y) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.y
                     z = (setpoint_f.pose.position.z - setpoint_i.pose.position.z) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.z
 
+                    R_i = quaternion_matrix([   setpoint_i.pose.orientation.w,          
+                                                setpoint_i.pose.orientation.x,
+                                                setpoint_i.pose.orientation.y,
+                                                setpoint_i.pose.orientation.z
+                                                            ])
+                    R_f = quaternion_matrix([   setpoint_f.pose.orientation.w,          
+                                                setpoint_f.pose.orientation.x,
+                                                setpoint_f.pose.orientation.y,
+                                                setpoint_f.pose.orientation.z
+                                                            ])
+                    
+                    z_i = np.array(R_i[0:3, 2])
+                    z_f = np.array(R_f[0:3, 2])
+
+
+                    self.get_logger().info("z_i: " + str(z_i))
+
+                    yaw_i = np.arctan2(z_i[0], -z_i[2])
+                    yaw_f = np.arctan2(z_f[0], -z_f[2])
+
                     _, pitch_i, _= euler_from_quaternion([  setpoint_i.pose.orientation.x,
                                                             setpoint_i.pose.orientation.y,
                                                             setpoint_i.pose.orientation.z,
@@ -196,7 +216,8 @@ class DronePathFollower(Node):
                     # Pitch in camera frame is yaw in NED frame
 
                     # 8- Compute a linear interpolation between the pitch angles
-                    pitch = (pitch_f - pitch_i) / (t_f - t_i) * current_segement_time + pitch_i
+                    # pitch = (pitch_f - pitch_i) / (t_f - t_i) * current_segement_time + pitch_i
+                    yaw = (yaw_f - yaw_i) / (t_f - t_i) * current_segement_time + yaw_i
 
 
                     # 9- Handle the conversion from Camera to NED frame
@@ -204,7 +225,9 @@ class DronePathFollower(Node):
                     trajectory_msg.position[0] = z
                     trajectory_msg.position[1] = x
                     trajectory_msg.position[2] = y
-                    trajectory_msg.yaw = pitch
+                    trajectory_msg.yaw = yaw
+
+                    self.get_logger().info("Yaw: " + str(yaw))
 
                     self.publisher_trajectory.publish(trajectory_msg)
 
