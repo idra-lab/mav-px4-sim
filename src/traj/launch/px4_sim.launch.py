@@ -14,7 +14,20 @@ from launch_ros.actions import Node
 from launch.substitutions import EnvironmentVariable
 from launch.actions import OpaqueFunction
 
+import xml.etree.ElementTree as ET
 
+def obatin_real_time_factor(world_path):
+	tree = ET.parse(world_path)
+	root = tree.getroot()
+
+	# Find the <real_time_factor> element
+	physics = root.find('.//physics')
+	if physics is not None:
+		real_time_factor = physics.find('real_time_factor')
+		if real_time_factor is not None:
+			return real_time_factor.text
+		else:
+			print("No <real_time_factor> element found.")
 
 def generate_launch_description():
 
@@ -29,10 +42,11 @@ def generate_launch_description():
 	)
 
 	gazebo_world_launch_arg = DeclareLaunchArgument(
-		'gz_world_file', default_value='default_custom.sdf'
+		'gz_world_file', default_value='warehouse.sdf'
 	)
+	
 	gazebo_name_launch_arg = DeclareLaunchArgument(
-		'gz_world', default_value='default_custom'
+		'gz_world', default_value='warehouse'
 	)
   
 	ddsport_launch_arg = DeclareLaunchArgument(
@@ -56,6 +70,8 @@ def generate_launch_description():
 		value='0 0 0.01 0 0 1.57'
 		# value='0 0 0 0 0 0'
 	)
+
+	
 
 	
 
@@ -94,12 +110,19 @@ def generate_launch_description():
 			'use_sim_time': 'true'
 		}.items(),
 	)
+
+	# RTF = obatin_real_time_factor(os.path.join(drone_gazebo_dir, 'worlds', gazebo_world_launch_arg))
+
+	set_sim_speed = SetEnvironmentVariable(
+		name='PX4_SIM_SPEED_FACTOR',
+		value='1'
+	)
 	
 	# Start the simulation 
 	sim_start = ExecuteProcess(
 		cmd=[
 			'gz', 'service', '-s', 
-			'/world/default_custom/control',  
+			'/world/warehouse/control',  
 			'--reqtype', 'gz.msgs.WorldControl', 
 			'--reptype', 'gz.msgs.Boolean', 
 			'--timeout', '1000', 
@@ -249,6 +272,7 @@ def generate_launch_description():
 	# uxrce_dds_synct_env,
 	set_resource_path,
 	set_plugin_path,
+	set_sim_speed,
 	set_pose,
 	airframe_launch_arg,
 	ddsport_launch_arg,

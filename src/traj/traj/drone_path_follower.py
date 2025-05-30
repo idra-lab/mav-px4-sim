@@ -198,7 +198,6 @@ class DronePathFollower(Node):
                     z_f = np.array(R_f[0:3, 2])
 
 
-                    self.get_logger().info("z_i: " + str(z_i))
 
                     yaw_i = np.arctan2(z_i[0], -z_i[2])
                     yaw_f = np.arctan2(z_f[0], -z_f[2])
@@ -227,7 +226,6 @@ class DronePathFollower(Node):
                     trajectory_msg.position[2] = y
                     trajectory_msg.yaw = yaw
 
-                    self.get_logger().info("Yaw: " + str(yaw))
 
                     self.publisher_trajectory.publish(trajectory_msg)
 

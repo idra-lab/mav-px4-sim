@@ -252,8 +252,8 @@ Visualization Manager:
       Voxel Coloring: Cell Color
       Voxel Alpha: 0.2
       Max. Octree Depth: 16
-      Max. Height Display: 20
-      Min. Height Display: -2
+      Max. Height Display: 50
+      Min. Height Display: -50
       Value: true
     - Class: UncertainPointCloud
       Enabled: true
@@ -278,13 +278,13 @@ Visualization Manager:
       Max Value: 100
       Value: true
     - Class: rviz_default_plugins/PointCloud2
-      Enabled: true
+      Enabled: false
       Name: PointCloud
       Style: Spheres
       Alpha: 0.5
       Color Transformer: "AxisColor"
       Axis: X
-      Decay Time: 5
+      Decay Time: 10
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -295,7 +295,7 @@ Visualization Manager:
       Value: true
   Enabled: true
   Global Options:
-    Background Color: 255; 255; 255
+    Background Color: 0; 0; 0
     Fixed Frame: map
     Frame Rate: 30
   Name: root
