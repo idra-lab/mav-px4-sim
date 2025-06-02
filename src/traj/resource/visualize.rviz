@@ -249,7 +249,7 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /octomap_full
       Voxel Rendering: Occupied Voxels
-      Voxel Coloring: Cell Color
+      Voxel Coloring: Z-Axis
       Voxel Alpha: 0.2
       Max. Octree Depth: 16
       Max. Height Display: 50

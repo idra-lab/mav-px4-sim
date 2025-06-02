@@ -125,7 +125,7 @@ def generate_launch_description():
 			'/world/warehouse/control',  
 			'--reqtype', 'gz.msgs.WorldControl', 
 			'--reptype', 'gz.msgs.Boolean', 
-			'--timeout', '1000', 
+			'--timeout', '2000', 
 			'--req', 'pause: false'
 		],
 		output='screen'
