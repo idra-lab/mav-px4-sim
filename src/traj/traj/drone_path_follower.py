@@ -131,6 +131,7 @@ class DronePathFollower(Node):
     def path_callback(self, msg):
         self.path = msg
         self.path_start_time = self.get_clock().now().nanoseconds
+        self.index = 0
         self.publish_setpoints_flag = True
         self.get_logger().info("Path Received")
 
@@ -174,6 +175,9 @@ class DronePathFollower(Node):
 
                     t_i = setpoint_i.header.stamp.sec + setpoint_i.header.stamp.nanosec / 1e9
                     t_f = setpoint_f.header.stamp.sec + setpoint_f.header.stamp.nanosec / 1e9
+
+                    # self.get_logger().info("t_i: " + str(t_i) + " t_f: " + str(t_f) + " elapsed_time: " + str(elapsed_time))
+                    
 
                     # 6 - Compute the time elapsed in the current segment
                     current_segement_time = elapsed_time - (setpoint_i.header.stamp.sec + setpoint_i.header.stamp.nanosec / 1e9)
