@@ -42,11 +42,11 @@ def generate_launch_description():
 	)
 
 	gazebo_world_launch_arg = DeclareLaunchArgument(
-		'gz_world_file', default_value='warehouse.sdf'
+		'gz_world_file', default_value='easy_forest.sdf'
 	)
 	
 	gazebo_name_launch_arg = DeclareLaunchArgument(
-		'gz_world', default_value='warehouse'
+		'gz_world', default_value='easy_forest'
 	)
   
 	ddsport_launch_arg = DeclareLaunchArgument(
@@ -100,11 +100,12 @@ def generate_launch_description():
 		PythonLaunchDescriptionSource(
 			os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
 		launch_arguments={
-			'gz_args': PathJoinSubstitution([
+			'gz_args': [PathJoinSubstitution([
 				drone_gazebo_dir,
 				'worlds',
 				gz_world_file, 
 			]),
+			' -r'],
 			'on_exit_shutdown': 'True',
 			'paused': 'False',
 			'use_sim_time': 'true'
@@ -118,18 +119,18 @@ def generate_launch_description():
 		value='1'
 	)
 	
-	# Start the simulation 
-	sim_start = ExecuteProcess(
-		cmd=[
-			'gz', 'service', '-s', 
-			'/world/warehouse/control',  
-			'--reqtype', 'gz.msgs.WorldControl', 
-			'--reptype', 'gz.msgs.Boolean', 
-			'--timeout', '2000', 
-			'--req', 'pause: false'
-		],
-		output='screen'
-	)
+	# # Start the simulation 
+	# sim_start = ExecuteProcess(
+	# 	cmd=[
+	# 		'gz', 'service', '-s', 
+	# 		'/world/easy_forest/control',  
+	# 		'--reqtype', 'gz.msgs.WorldControl', 
+	# 		'--reptype', 'gz.msgs.Boolean', 
+	# 		'--timeout', '2000', 
+	# 		'--req', 'pause: false'
+	# 	],
+	# 	output='screen'
+	# )
 
 
 	# Bridge
@@ -266,6 +267,23 @@ def generate_launch_description():
 		arguments=['-d', [os.path.join(pkg_traj, 'resource/visualize.rviz')]]
 	)
 
+	takeoff_node = Node(
+		package='traj',
+		executable='offboard_takeoff',
+		name='offboard_takeoff',
+		prefix='gnome-terminal --tab --',
+		output='screen', 
+		parameters = [{'altitude': 1.0}]
+	)
+
+	drone_path_follower_node = Node(
+		package='traj',
+		executable='drone_path_follower',
+		name='drone_path_follower',
+		prefix='gnome-terminal --tab --',
+		output='screen'
+	)
+
 
 	return LaunchDescription(
 	[
@@ -284,7 +302,6 @@ def generate_launch_description():
 	uxrce_dds_synct_env,
 	dds_cmd,
 	gz_sim,
-	sim_start,
 	bridge,
 	px4_sim_cmd,
 	QGC_cmd, 
@@ -296,6 +313,7 @@ def generate_launch_description():
 	visualizer_node,
 	rviz2_node, 
 	ground_truth_node, 
-	
+	takeoff_node,
+	drone_path_follower_node,
 	]
 	)    

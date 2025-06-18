@@ -78,6 +78,18 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /px4_visualizer/vehicle_velocity
       Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Obstacles Marker
+      Namespaces:
+        arrow: false
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /obstacles_marker
+      Value: true
     - Alpha: 1
       Buffer Length: 1
       Class: rviz_default_plugins/Path

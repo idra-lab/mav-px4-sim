@@ -86,7 +86,7 @@ class OffboardTakeoff(Node):
         # which would result in large discontinuities in setpoints
         self.altitude = self.get_parameter('altitude').value
 
-        self.takeoff_speed = 0.2 # m/s
+        self.takeoff_speed = 0.5 # m/s
         self.takeoff_duration = self.altitude /self.takeoff_speed #seconds
         self.takeoff_start_time = self.get_clock().now().nanoseconds
 
