@@ -29,12 +29,19 @@ def obatin_real_time_factor(world_path):
 		else:
 			print("No <real_time_factor> element found.")
 
+def add_all_actions(ld, actions):
+	for action in actions:
+		
+		ld.add_action(action)
+
 def generate_launch_description():
 
 	airframe = LaunchConfiguration("airframe")
 	ddsport = LaunchConfiguration("ddsport")
 	gz_world_file = LaunchConfiguration("gz_world_file")
 	gz_world = LaunchConfiguration("gz_world")
+
+	ld = LaunchDescription()
 
 
 	airframe_launch_arg = DeclareLaunchArgument(
@@ -53,6 +60,13 @@ def generate_launch_description():
 		'ddsport', default_value='8888'
 	)
 
+	launch_args = [airframe_launch_arg,
+					gazebo_world_launch_arg,
+					gazebo_name_launch_arg,
+					ddsport_launch_arg]
+	
+	add_all_actions(ld, launch_args)
+
 	# TODO: Add launch arguments from terminal such as airframe name and world name and set PX4_GZ_MODEL_POSE to specify the spawn position
 	
 	# set_resource_path = SetEnvironmentVariable(
@@ -64,12 +78,44 @@ def generate_launch_description():
 
 
 	set_plugin_path = SetEnvironmentVariable(name='GZ_SIM_SYSTEM_PLUGIN_PATH',value=[EnvironmentVariable('GZ_SIM_SYSTEM_PLUGIN_PATH'), ':/opt/ros/humble/lib'])
+
+	# remove_gps = SetEnvironmentVariable(name='EKF2_GPS_CTRL', value=[EnvironmentVariable('EKF2_GPS_CTRL'), '0'])
 	
 	set_pose = SetEnvironmentVariable(
 		name='PX4_GZ_MODEL_POSE',
 		value='0 0 0.01 0 0 1.57'
 		# value='0 0 0 0 0 0'
 	)
+
+	uxrce_dds_synct_env = SetEnvironmentVariable(
+		'UXRCE_DDS_SYNCT', '0'
+	)
+
+	set_sim_speed = SetEnvironmentVariable(
+		name='PX4_SIM_SPEED_FACTOR',
+		value='1'
+	)
+
+	px4_sim_model_env = SetEnvironmentVariable(
+		'PX4_SIM_MODEL', airframe
+	)
+	gz_standalone_env = SetEnvironmentVariable(
+		'PX4_GZ_STANDALONE', "1"
+	)
+
+
+
+	env_vars_set = [
+		set_resource_path,
+		set_plugin_path,
+		# remove_gps,
+		set_pose, 
+		uxrce_dds_synct_env, 
+		set_sim_speed, 
+		px4_sim_model_env]
+	
+	# ld.add_action(env_vars_set)
+	add_all_actions(ld, env_vars_set)
 
 	
 
@@ -86,15 +132,9 @@ def generate_launch_description():
 		robot_desc = infp.read()
 
 	drone_gazebo_dir = get_package_share_directory('drone_gazebo')
-
-	
-	
 	px4_src_dir =  os.path.expanduser('~/PX4-Autopilot')
 
-	uxrce_dds_synct_env = SetEnvironmentVariable(
-		'UXRCE_DDS_SYNCT', '0'
-	)
-
+	
 
 	gz_sim = IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(
@@ -112,12 +152,11 @@ def generate_launch_description():
 		}.items(),
 	)
 
+	ld.add_action(gz_sim)
+
 	# RTF = obatin_real_time_factor(os.path.join(drone_gazebo_dir, 'worlds', gazebo_world_launch_arg))
 
-	set_sim_speed = SetEnvironmentVariable(
-		name='PX4_SIM_SPEED_FACTOR',
-		value='1'
-	)
+	
 	
 	# # Start the simulation 
 	# sim_start = ExecuteProcess(
@@ -132,14 +171,20 @@ def generate_launch_description():
 	# 	output='screen'
 	# )
 
+	""" 
+	
+	BRIDGE
+	  
+	 """
 
 	# Bridge
-	bridge = Node(
+	image_bridge = Node(
 		package='ros_gz_image',
 		executable='image_bridge',
 		arguments=['rgbd_camera/image', 'rgbd_camera/depth_image'],
 		output='screen'
 	)
+
 
 
 	# Bridge ROS topics and Gazebo messages for establishing communication
@@ -153,16 +198,19 @@ def generate_launch_description():
 		prefix='gnome-terminal --tab --',
 		output='screen'
 	)
+
+	BRIDGING_NODES = [
+		image_bridge,
+		ros_gz_bridge
+	 ]
+	
+	add_all_actions(ld, BRIDGING_NODES)
+
+
 	
 	use_sim_time_setter = SetParameter(name='use_sim_time', value=True)
 
-	px4_sim_model_env = SetEnvironmentVariable(
-		'PX4_SIM_MODEL', airframe
-	)
-	gz_standalone_env = SetEnvironmentVariable(
-		'PX4_GZ_STANDALONE', "1"
-	)
-
+	
 
 	px4_sim_cmd = ExecuteProcess(
 		
@@ -191,6 +239,25 @@ def generate_launch_description():
 		output='screen'
 	)
 
+	px4_software_launch = [
+		px4_sim_cmd,
+		QGC_cmd,
+		dds_cmd,
+	]
+
+	# ld.add_action(px4_software_launch)
+	add_all_actions(ld, px4_software_launch)
+
+
+
+	""" 
+	
+	
+	Trafo Nodes
+	 
+	
+	"""
+
 	camera_optical_frame_tf = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -201,17 +268,6 @@ def generate_launch_description():
             'x500_realsense/realsense_d435/base_link/realsense_d435',               # parent frame
         ]
     )
-
-	# map_frame_node = Node(
-	# 	package='tf2_ros',
-	# 	executable='static_transform_publisher',
-	# 	name='map_frame_publisher',
-	# 	arguments=[
-	# 		'0', '0', '0',
-	# 		'0', '0', '0', 
-	# 		'world', 'map'],
-	# 	output='screen'
-	# )
 
 	slam_map_frame_node = Node(
 		package='tf2_ros',
@@ -248,8 +304,24 @@ def generate_launch_description():
 		name='drone_ground_truth',
 		output='screen'
 	)
-	
 
+	trafo_nodes = [
+		px4_tf_node,
+		slam_map_frame_node,
+		pointcloud_trafo_node,
+		camera_optical_frame_tf,
+		ground_truth_node
+	]
+
+	# ld.add_action(trafo_nodes)
+	add_all_actions(ld, trafo_nodes)
+	
+	""" 
+
+	RVIZ Visualization Nodes
+	
+	
+	"""
 	visualizer_node = Node(
             package='traj',
             namespace='traj',
@@ -267,6 +339,21 @@ def generate_launch_description():
 		arguments=['-d', [os.path.join(pkg_traj, 'resource/visualize.rviz')]]
 	)
 
+	rviz_visualization_nodes = [
+		visualizer_node,
+		rviz2_node
+	]
+
+	# ld.add_action(rviz_visualization_nodes)
+	add_all_actions(ld, rviz_visualization_nodes)
+
+	""" 
+
+	TRAJECTORY utilities
+	 
+	
+	"""
+
 	takeoff_node = Node(
 		package='traj',
 		executable='offboard_takeoff',
@@ -276,44 +363,11 @@ def generate_launch_description():
 		parameters = [{'altitude': 1.0}]
 	)
 
-	drone_path_follower_node = Node(
-		package='traj',
-		executable='drone_path_follower',
-		name='drone_path_follower',
-		prefix='gnome-terminal --tab --',
-		output='screen'
-	)
-
-
-	return LaunchDescription(
-	[
-	# uxrce_dds_synct_env,
-	set_resource_path,
-	set_plugin_path,
-	set_sim_speed,
-	set_pose,
-	airframe_launch_arg,
-	ddsport_launch_arg,
-	gazebo_name_launch_arg,
-	gazebo_world_launch_arg,
-
-	px4_sim_model_env,
-	# gz_standalone_env,
-	uxrce_dds_synct_env,
-	dds_cmd,
-	gz_sim,
-	bridge,
-	px4_sim_cmd,
-	QGC_cmd, 
-	ros_gz_bridge, 
-	slam_map_frame_node,
-	camera_optical_frame_tf,
-	px4_tf_node,
-	pointcloud_trafo_node,
-	visualizer_node,
-	rviz2_node, 
-	ground_truth_node, 
-	takeoff_node,
-	drone_path_follower_node,
+	traj_utilities_nodes = [
+		takeoff_node,
 	]
-	)    
+	# ld.add_action(traj_utilities_nodes)
+	add_all_actions(ld, traj_utilities_nodes)
+
+	
+	return ld
