@@ -14,6 +14,8 @@ from launch_ros.actions import Node
 from launch.substitutions import EnvironmentVariable
 from launch.actions import OpaqueFunction
 
+from tf_transformations import quaternion_from_euler, euler_from_quaternion, quaternion_multiply, quaternion_inverse
+
 import xml.etree.ElementTree as ET
 
 def obatin_real_time_factor(world_path):
@@ -80,10 +82,25 @@ def generate_launch_description():
 	set_plugin_path = SetEnvironmentVariable(name='GZ_SIM_SYSTEM_PLUGIN_PATH',value=[EnvironmentVariable('GZ_SIM_SYSTEM_PLUGIN_PATH'), ':/opt/ros/humble/lib'])
 
 	# remove_gps = SetEnvironmentVariable(name='EKF2_GPS_CTRL', value=[EnvironmentVariable('EKF2_GPS_CTRL'), '0'])
+
+	pose_str = '0 0 0.01 0 0 1.57'
+
+	drone_position = [float(x) for x in pose_str.split()[:3]]
+	drone_angles = [float(x) for x in pose_str.split()[3:]]
+	drone_angles[2] -= 1.57  # Adjust yaw to match the expected orientation
+
+	drone_quat = quaternion_from_euler(
+
+		drone_angles[0],
+		drone_angles[1],
+		drone_angles[2]
+	)
+
 	
 	set_pose = SetEnvironmentVariable(
 		name='PX4_GZ_MODEL_POSE',
-		value='0 0 0.01 0 0 1.57'
+		# value='0 0 0.01 0 0 1.57'
+		value= pose_str,
 		# value='0 0 0 0 0 0'
 	)
 
@@ -269,18 +286,67 @@ def generate_launch_description():
         ]
     )
 
+	slam_map_quat = [-0.5, 0.5, -0.5, -0.5]
+
+	
+
+	rotated_map_frame_node = Node(
+		package='tf2_ros',
+		executable='static_transform_publisher',
+		name='drone_pose_correction_frame_publisher',
+		arguments=[
+			'0', '0', '0',                # translation x y z
+            str(drone_quat[0]), str(drone_quat[1]), str(drone_quat[2]), str(drone_quat[3]),   # rotation in RPY (rad): -90°, 0°, -90°
+            # '-0.5', '0.5', '-0.5', '-0.5',   # rotation in RPY (rad): -90°, 0°, -90°
+            # '1, 0, 0, 0',   # rotation in RPY (rad): -90°, 0°, -90°
+			'map', 
+			'initial_pose_map',
+			],
+		output='screen'
+	)
+
+	map_to_slam = quaternion_inverse(slam_map_quat)
+
 	slam_map_frame_node = Node(
 		package='tf2_ros',
 		executable='static_transform_publisher',
 		name='map_frame_publisher',
 		arguments=[
 			'0', '0', '0',                # translation x y z
-            '-0.5', '0.5', '-0.5', '-0.5',   # rotation in RPY (rad): -90°, 0°, -90°
+            str(map_to_slam[0]), str(map_to_slam[1]), str(map_to_slam[2]), str(map_to_slam[3]),   # rotation in RPY (rad): -90°, 0°, -90°
+            # '-0.5', '0.5', '-0.5', '-0.5',   # rotation in RPY (rad): -90°, 0°, -90°
+            # '1, 0, 0, 0',   # rotation in RPY (rad): -90°, 0°, -90°
+			'initial_pose_map',
 			'slam_map', 
-			'map'
 			],
 		output='screen'
 	)
+
+	inverse_drone_quat = quaternion_inverse(drone_quat)
+
+	total_rot = quaternion_multiply(
+		slam_map_quat,
+		inverse_drone_quat
+	)
+
+
+	
+	# slam_map_frame_node = Node(
+	# 	package='tf2_ros',
+	# 	executable='static_transform_publisher',
+	# 	name='map_frame_publisher',
+	# 	arguments=[
+	# 		'0', '0', '0',                # translation x y z
+    #         str(total_rot[0]), str(total_rot[1]), str(total_rot[2]), str(total_rot[3]),   # rotation in RPY (rad): -90°, 0°, -90°
+    #         # '-0.5', '0.5', '-0.5', '-0.5',   # rotation in RPY (rad): -90°, 0°, -90°
+    #         # '1, 0, 0, 0',   # rotation in RPY (rad): -90°, 0°, -90°
+	# 		'slam_map', 
+	# 		'map'
+	# 		],
+	# 	output='screen'
+	# )
+
+	
 
 
 	px4_tf_node = Node(
@@ -310,7 +376,8 @@ def generate_launch_description():
 		slam_map_frame_node,
 		pointcloud_trafo_node,
 		camera_optical_frame_tf,
-		ground_truth_node
+		ground_truth_node, 
+		rotated_map_frame_node
 	]
 
 	# ld.add_action(trafo_nodes)
@@ -360,7 +427,7 @@ def generate_launch_description():
 		name='offboard_takeoff',
 		prefix='gnome-terminal --tab --',
 		output='screen', 
-		parameters = [{'altitude': 1.0}]
+		parameters = [{'altitude': 1.5}]
 	)
 
 	traj_utilities_nodes = [

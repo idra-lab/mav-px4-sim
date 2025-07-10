@@ -91,7 +91,7 @@ Visualization Manager:
         Value: /obstacles_marker
       Value: true
     - Alpha: 1
-      Buffer Length: 1
+      Buffer Length: 10000
       Class: rviz_default_plugins/Path
       Color: 25; 255; 0
       Enabled: true
@@ -119,7 +119,7 @@ Visualization Manager:
       Value: true
     - Class: rviz_default_plugins/Path
       Alpha: 1
-      Buffer Length: 1
+      Buffer Length: 1000
       Color: 25; 0; 255
       Enabled: true
       Head Diameter: 0.30000001192092896
@@ -364,7 +364,7 @@ Visualization Manager:
       Name: Current View
       Near Clip Distance: 0.009999999776482582
       Pitch: 0.795397937297821
-      Target Frame: <Fixed Frame>
+      Target Frame: drone
       Value: Orbit (rviz)
       Yaw: 0.6553981304168701
     Saved: ~

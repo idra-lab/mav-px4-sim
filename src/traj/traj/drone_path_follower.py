@@ -39,7 +39,7 @@ from rclpy.node import Node
 from rclpy.clock import Clock
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 
-from tf_transformations import euler_from_quaternion, quaternion_matrix
+from tf_transformations import euler_from_quaternion, quaternion_matrix,  rotation_matrix
 
 from px4_msgs.msg import OffboardControlMode
 from px4_msgs.msg import TrajectorySetpoint
@@ -47,7 +47,8 @@ from px4_msgs.msg import VehicleStatus
 from px4_msgs.msg import VehicleCommand
 
 from nav_msgs.msg import Path
-
+from tf2_ros import TransformListener, Buffer
+from tf2_ros import TransformException
 
 class DronePathFollower(Node):
 
@@ -59,6 +60,20 @@ class DronePathFollower(Node):
             history=QoSHistoryPolicy.RMW_QOS_POLICY_HISTORY_KEEP_LAST,
             depth=1
         )
+
+        # Declare and acquire `target_frame` parameter
+        self.target_frame = self.declare_parameter(
+          'target_frame', 'map').get_parameter_value().string_value
+
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+        self.static_transform_set = False
+
+        # Call on_timer function every second
+        self.timer = self.create_timer(1.0, self.tf_timer)
+
+        self.transform = None
+        self.slam_map_to_rotated_map = None
 
         self.status_sub = self.create_subscription(
             VehicleStatus,
@@ -87,7 +102,65 @@ class DronePathFollower(Node):
         
         self.nav_state = VehicleStatus.NAVIGATION_STATE_MAX
         self.arming_state = VehicleStatus.ARMING_STATE_DISARMED
+    
+    def tf_timer(self):
+        if not self.static_transform_set:
+            # Store frame names in variables that will be used to
+            # compute transformations
+
+
+            # Look up for the transformation between target_frame and turtle2 frames
+            # and send velocity commands for turtle2 to reach target_frame
+            try:
+                self.transform = self.tf_buffer.lookup_transform(
+                    'map',
+                    'initial_pose_map',
+                    rclpy.time.Time())
+                
+                self.static_transform_set = True
+            except TransformException as ex:
+                self.get_logger().info(
+                    # f'Could not transform {to_frame_rel} to {from_frame_rel}: {ex}')
+                    f'Could not transform initial_pose_map to map: {ex}')
+                return
+            
+            try: 
+                self.initial_pose_to_slam = self.tf_buffer.lookup_transform(
+                    'slam_map',
+                    'initial_pose_map',
+                    rclpy.time.Time())
+                
+            except TransformException as ex:
+                self.get_logger().info(
+                    f'Could not transform initial_pose_map to slam_map: {ex}')
+                return
+            
+            print("Transform:\n", self.transform)
+            
+            r_initial_pose_in_map = quaternion_matrix([     
+                                                            self.transform.transform.rotation.x,
+                                                            self.transform.transform.rotation.y,
+                                                            self.transform.transform.rotation.z,
+                                                            self.transform.transform.rotation.w
+                                                            ])
+            
+            r_initial_pose_to_slam = quaternion_matrix([   
+                                                            self.initial_pose_to_slam.transform.rotation.x,
+                                                            self.initial_pose_to_slam.transform.rotation.y,
+                                                            self.initial_pose_to_slam.transform.rotation.z,
+                                                            self.initial_pose_to_slam.transform.rotation.w
+                                                            ])
+            
+            print("r_initial_pose_in_map:\n", r_initial_pose_in_map)
+            print("r_initial_pose_to_slam:\n", r_initial_pose_to_slam)
+
+            
+            self.rotated_map_in_slam_frame = r_initial_pose_to_slam @ r_initial_pose_in_map @ np.linalg.inv(r_initial_pose_to_slam)
         
+            print("rotated_map_in_slam_frame:\n", self.rotated_map_in_slam_frame)
+            
+
+            
 
     def set_hold_mode(self):
         msg = VehicleCommand()
@@ -181,22 +254,40 @@ class DronePathFollower(Node):
 
                     # 6 - Compute the time elapsed in the current segment
                     current_segement_time = elapsed_time - (setpoint_i.header.stamp.sec + setpoint_i.header.stamp.nanosec / 1e9)
+                    
+
 
                     # 7- Compute a linear interpolation between the two setpoints
                     x = (setpoint_f.pose.position.x - setpoint_i.pose.position.x) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.x
                     y = (setpoint_f.pose.position.y - setpoint_i.pose.position.y) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.y
                     z = (setpoint_f.pose.position.z - setpoint_i.pose.position.z) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.z
 
+                    r =  self.rotated_map_in_slam_frame
+                    
+                    # print("rotated map in slam frame:\n", self.rotated_map_in_slam_frame)
+                    # print("pos_slam:\n", pos_slam)
+                    # print("rotated_pos: ", rotated_pos)
+
+                    pos_slam =  np.array([[x], [y], [z]])
+                    rotated_pos = np.dot(r[0:3, 0:3], pos_slam)
+                    x = rotated_pos[0, 0]
+                    y = rotated_pos[1, 0]
+                    z = rotated_pos[2, 0]
+                    
                     R_i = quaternion_matrix([   setpoint_i.pose.orientation.w,          
                                                 setpoint_i.pose.orientation.x,
                                                 setpoint_i.pose.orientation.y,
                                                 setpoint_i.pose.orientation.z
                                                             ])
+                    
                     R_f = quaternion_matrix([   setpoint_f.pose.orientation.w,          
                                                 setpoint_f.pose.orientation.x,
                                                 setpoint_f.pose.orientation.y,
                                                 setpoint_f.pose.orientation.z
                                                             ])
+                    
+                    R_i = np.dot(R_i, r)
+                    R_f = np.dot(R_f, r)
                     
                     z_i = np.array(R_i[0:3, 2])
                     z_f = np.array(R_f[0:3, 2])

@@ -38,7 +38,7 @@ def generate_launch_description():
 
 	return LaunchDescription(
 	[
-	drone_path_follower_node,
+	# drone_path_follower_node,
 	uncertain_planner,
 	]
 	)    
