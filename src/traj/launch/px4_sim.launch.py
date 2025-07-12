@@ -15,6 +15,7 @@ from launch.substitutions import EnvironmentVariable
 from launch.actions import OpaqueFunction
 
 from tf_transformations import quaternion_from_euler, euler_from_quaternion, quaternion_multiply, quaternion_inverse
+from launch.actions import TimerAction
 
 import xml.etree.ElementTree as ET
 
@@ -51,11 +52,11 @@ def generate_launch_description():
 	)
 
 	gazebo_world_launch_arg = DeclareLaunchArgument(
-		'gz_world_file', default_value='easy_forest.sdf'
+		'gz_world_file', default_value='medium_forest.sdf'
 	)
 	
 	gazebo_name_launch_arg = DeclareLaunchArgument(
-		'gz_world', default_value='easy_forest'
+		'gz_world', default_value='medium_forest'
 	)
   
 	ddsport_launch_arg = DeclareLaunchArgument(
@@ -78,12 +79,14 @@ def generate_launch_description():
 
 	set_resource_path = SetEnvironmentVariable(name='GZ_SIM_RESOURCE_PATH', value=[EnvironmentVariable('GZ_SIM_RESOURCE_PATH'), ':/usr/share/gz/gz-sim8/'])
 
+	
+
 
 	set_plugin_path = SetEnvironmentVariable(name='GZ_SIM_SYSTEM_PLUGIN_PATH',value=[EnvironmentVariable('GZ_SIM_SYSTEM_PLUGIN_PATH'), ':/opt/ros/humble/lib'])
 
 	# remove_gps = SetEnvironmentVariable(name='EKF2_GPS_CTRL', value=[EnvironmentVariable('EKF2_GPS_CTRL'), '0'])
 
-	pose_str = '0 0 0.01 0 0 1.57'
+	pose_str = '0 0 0.01 0 0 0.0'
 
 	drone_position = [float(x) for x in pose_str.split()[:3]]
 	drone_angles = [float(x) for x in pose_str.split()[3:]]
@@ -120,6 +123,11 @@ def generate_launch_description():
 		'PX4_GZ_STANDALONE', "1"
 	)
 
+	set_headless_env = SetEnvironmentVariable(
+		name='HEADLESS',
+		value='1'
+	)
+
 
 
 	env_vars_set = [
@@ -129,7 +137,8 @@ def generate_launch_description():
 		set_pose, 
 		uxrce_dds_synct_env, 
 		set_sim_speed, 
-		px4_sim_model_env]
+		px4_sim_model_env, 
+		set_headless_env]
 	
 	# ld.add_action(env_vars_set)
 	add_all_actions(ld, env_vars_set)
@@ -162,7 +171,9 @@ def generate_launch_description():
 				'worlds',
 				gz_world_file, 
 			]),
-			' -r'],
+			' -r', 
+			'-s'
+			],
 			'on_exit_shutdown': 'True',
 			'paused': 'False',
 			'use_sim_time': 'true'
@@ -289,7 +300,6 @@ def generate_launch_description():
 	slam_map_quat = [-0.5, 0.5, -0.5, -0.5]
 
 	
-
 	rotated_map_frame_node = Node(
 		package='tf2_ros',
 		executable='static_transform_publisher',
@@ -427,12 +437,19 @@ def generate_launch_description():
 		name='offboard_takeoff',
 		prefix='gnome-terminal --tab --',
 		output='screen', 
-		parameters = [{'altitude': 1.5}]
+		parameters = [{'altitude': 2.5}]
 	)
 
+	takeoff_node_delay = TimerAction(
+		period=15.0,  # delay in seconds
+		actions=[takeoff_node]
+	)
+
+
 	traj_utilities_nodes = [
-		takeoff_node,
+		takeoff_node_delay,
 	]
+
 	# ld.add_action(traj_utilities_nodes)
 	add_all_actions(ld, traj_utilities_nodes)
 

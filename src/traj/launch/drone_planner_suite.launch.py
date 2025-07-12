@@ -13,6 +13,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch.substitutions import EnvironmentVariable
 from launch.actions import OpaqueFunction
+from launch.actions import TimerAction
 
 
 
@@ -28,17 +29,23 @@ def generate_launch_description():
 		output='screen'
 	)
 
+
 	uncertain_planner_pkg = get_package_share_directory('uncertain_planner')
 
 	uncertain_planner = IncludeLaunchDescription(
 		PythonLaunchDescriptionSource(
-			os.path.join(uncertain_planner_pkg, 'launch', 'drone_planner.launch.py')),
-		
+			os.path.join(uncertain_planner_pkg, 'launch', 'drone_planner.launch.py')),	
+	)
+
+	# Wrap the uncertain_planner IncludeLaunchDescription in a TimerAction to delay its launch
+	delayed_uncertain_planner = TimerAction(
+		period=5.0,  # delay in seconds
+		actions=[uncertain_planner]
 	)
 
 	return LaunchDescription(
 	[
-	# drone_path_follower_node,
-	uncertain_planner,
+	drone_path_follower_node,
+	delayed_uncertain_planner,
 	]
 	)    

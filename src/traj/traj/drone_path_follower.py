@@ -74,6 +74,7 @@ class DronePathFollower(Node):
 
         self.transform = None
         self.slam_map_to_rotated_map = None
+        self.camera_slam_to_drone_camera = None
 
         self.status_sub = self.create_subscription(
             VehicleStatus,
@@ -158,6 +159,18 @@ class DronePathFollower(Node):
             self.rotated_map_in_slam_frame = r_initial_pose_to_slam @ r_initial_pose_in_map @ np.linalg.inv(r_initial_pose_to_slam)
         
             print("rotated_map_in_slam_frame:\n", self.rotated_map_in_slam_frame)
+
+
+        try: 
+            self.slam_cam_to_drone_cam = self.tf_buffer.lookup_transform(
+                'camera_color_optical_frame',
+                'x500_realsense/realsense_d435/base_link/realsense_d435',
+                rclpy.time.Time())
+            
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform initial_pose_map to slam_map: {ex}')
+            return
             
 
             
@@ -258,9 +271,17 @@ class DronePathFollower(Node):
 
 
                     # 7- Compute a linear interpolation between the two setpoints
-                    x = (setpoint_f.pose.position.x - setpoint_i.pose.position.x) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.x
+                    x = (setpoint_f.pose.position.x - setpoint_i.pose.position.x) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.x 
                     y = (setpoint_f.pose.position.y - setpoint_i.pose.position.y) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.y
                     z = (setpoint_f.pose.position.z - setpoint_i.pose.position.z) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.z
+
+                    # t_slam_cam_to_drone_cam = [self.slam_cam_to_drone_cam.transform.translation.x, 
+                    #                             self.slam_cam_to_drone_cam.transform.translation.y, 
+                    #                             self.slam_cam_to_drone_cam.transform.translation.z]
+                    
+                    # x += t_slam_cam_to_drone_cam[0]
+                    # y += t_slam_cam_to_drone_cam[1]
+                    # z += t_slam_cam_to_drone_cam[2]
 
                     r =  self.rotated_map_in_slam_frame
                     
@@ -274,28 +295,30 @@ class DronePathFollower(Node):
                     y = rotated_pos[1, 0]
                     z = rotated_pos[2, 0]
                     
-                    R_i = quaternion_matrix([   setpoint_i.pose.orientation.w,          
+                    R_i = quaternion_matrix([   
                                                 setpoint_i.pose.orientation.x,
                                                 setpoint_i.pose.orientation.y,
-                                                setpoint_i.pose.orientation.z
+                                                setpoint_i.pose.orientation.z,
+                                                setpoint_i.pose.orientation.w,          
                                                             ])
                     
-                    R_f = quaternion_matrix([   setpoint_f.pose.orientation.w,          
+                    R_f = quaternion_matrix([   
                                                 setpoint_f.pose.orientation.x,
                                                 setpoint_f.pose.orientation.y,
-                                                setpoint_f.pose.orientation.z
+                                                setpoint_f.pose.orientation.z,
+                                                setpoint_f.pose.orientation.w,          
                                                             ])
                     
-                    R_i = np.dot(R_i, r)
-                    R_f = np.dot(R_f, r)
+                    R_i = np.dot( r, R_i)
+                    R_f = np.dot( r, R_f)
                     
                     z_i = np.array(R_i[0:3, 2])
                     z_f = np.array(R_f[0:3, 2])
 
 
 
-                    yaw_i = np.arctan2(z_i[0], -z_i[2])
-                    yaw_f = np.arctan2(z_f[0], -z_f[2])
+                    yaw_i = np.arctan2(z_i[0], z_i[2])
+                    yaw_f = np.arctan2(z_f[0], z_f[2])
 
                     _, pitch_i, _= euler_from_quaternion([  setpoint_i.pose.orientation.x,
                                                             setpoint_i.pose.orientation.y,

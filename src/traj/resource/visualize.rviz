@@ -262,13 +262,13 @@ Visualization Manager:
         Value: /octomap_full
       Voxel Rendering: Occupied Voxels
       Voxel Coloring: Z-Axis
-      Voxel Alpha: 0.2
+      Voxel Alpha: 1.0
       Max. Octree Depth: 16
       Max. Height Display: 50
       Min. Height Display: -50
       Value: true
     - Class: UncertainPointCloud
-      Enabled: true
+      Enabled: false
       Name: UncertainPointCloud
       Topic: 
         Depth: 1
