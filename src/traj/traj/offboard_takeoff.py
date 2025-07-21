@@ -85,9 +85,8 @@ class OffboardTakeoff(Node):
         # Note: no parameter callbacks are used to prevent sudden inflight changes of radii and omega 
         # which would result in large discontinuities in setpoints
         self.altitude = self.get_parameter('altitude').value
-        self.jump_altitude = 0.3  # m, altitude to jump to before takeoff
-        self.takeoff_speed = 0.05 # m/s
-        self.takeoff_duration = (self.altitude - self.jump_altitude) /self.takeoff_speed #seconds
+        self.takeoff_speed = 10 # m/s
+        self.takeoff_duration = self.altitude/self.takeoff_speed #seconds
         self.takeoff_start_time = self.get_clock().now().nanoseconds
 
         self.takeoff_completed = False
@@ -157,28 +156,22 @@ class OffboardTakeoff(Node):
         offboard_msg.acceleration=False
         self.publisher_offboard_mode.publish(offboard_msg)
 
-        # Oscillate yaw angle to help visual SLAM initialization
-        oscillation_amplitude = np.deg2rad(10)  # 20 degrees in radians
-        oscillation_frequency = 0.2  # Hz
-
-        elapsed_time = (self.get_clock().now().nanoseconds - self.takeoff_start_time) / 1e9
-
         if not self.takeoff_completed:
             if (self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD and self.arming_state == VehicleStatus.ARMING_STATE_ARMED):
                 delta_t = (self.get_clock().now().nanoseconds - self.takeoff_start_time) / 1e9
 
+                if delta_t > self.takeoff_duration:
+                    delta_t = self.takeoff_duration
+
                 trajectory_msg = TrajectorySetpoint()
                 trajectory_msg.position[0] = 0
                 trajectory_msg.position[1] = 0
-                trajectory_msg.position[2] = -(self.altitude + self.jump_altitude - self.takeoff_speed * (self.takeoff_duration-delta_t) )
+                trajectory_msg.position[2] = - (self.altitude - self.takeoff_speed * (self.takeoff_duration-delta_t) )
                 trajectory_msg.velocity[0] = 0
                 trajectory_msg.velocity[1] = 0
-                trajectory_msg.velocity[2] = -self.takeoff_speed
+                trajectory_msg.velocity[2] = 0.0
                 trajectory_msg.yaw = self.heading 
                 
-                if (delta_t) >  0.3*self.takeoff_duration:
-                    trajectory_msg.yaw += oscillation_amplitude * np.sin(2 * np.pi * oscillation_frequency * elapsed_time)
-
 
                 self.publisher_takeoff.publish(trajectory_msg)
             else: 

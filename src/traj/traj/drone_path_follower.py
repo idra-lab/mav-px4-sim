@@ -217,7 +217,7 @@ class DronePathFollower(Node):
     def path_callback(self, msg):
         self.path = msg
         self.path_start_time = self.get_clock().now().nanoseconds
-        self.index = 0
+        self.index = 1
         self.publish_setpoints_flag = True
         self.get_logger().info("Path Received")
 
@@ -245,105 +245,139 @@ class DronePathFollower(Node):
 
                     
                     # 3- Check if the time elapsed is greater than the time of the segment
-                    if elapsed_time > self.path.poses[self.index+1].header.stamp.sec + self.path.poses[self.index+1].header.stamp.nanosec / 1e9:
+                    if elapsed_time > self.path.poses[self.index].header.stamp.sec + self.path.poses[self.index].header.stamp.nanosec / 1e9:
                         
                         # 4- Increment the index
                         self.index += 1
 
-                        if self.index == len(self.path.poses)-1:
+                        if self.index == len(self.path.poses) -1:
                             return
                     
                     
 
-                    # 5- select the two setpoints at the end of the current segment
-                    setpoint_i = self.path.poses[self.index]
-                    setpoint_f = self.path.poses[self.index + 1]
+                    # # 5- select the two setpoints at the end of the current segment
+                    # setpoint_i = self.path.poses[self.index]
+                    # setpoint_f = self.path.poses[self.index + 1]
 
-                    t_i = setpoint_i.header.stamp.sec + setpoint_i.header.stamp.nanosec / 1e9
-                    t_f = setpoint_f.header.stamp.sec + setpoint_f.header.stamp.nanosec / 1e9
+                    # t_i = setpoint_i.header.stamp.sec + setpoint_i.header.stamp.nanosec / 1e9
+                    # t_f = setpoint_f.header.stamp.sec + setpoint_f.header.stamp.nanosec / 1e9
 
-                    # self.get_logger().info("t_i: " + str(t_i) + " t_f: " + str(t_f) + " elapsed_time: " + str(elapsed_time))
+                    # # self.get_logger().info("t_i: " + str(t_i) + " t_f: " + str(t_f) + " elapsed_time: " + str(elapsed_time))
                     
 
-                    # 6 - Compute the time elapsed in the current segment
-                    current_segement_time = elapsed_time - (setpoint_i.header.stamp.sec + setpoint_i.header.stamp.nanosec / 1e9)
+                    # # 6 - Compute the time elapsed in the current segment
+                    # current_segement_time = elapsed_time - (setpoint_i.header.stamp.sec + setpoint_i.header.stamp.nanosec / 1e9)
                     
 
 
-                    # 7- Compute a linear interpolation between the two setpoints
-                    x = (setpoint_f.pose.position.x - setpoint_i.pose.position.x) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.x 
-                    y = (setpoint_f.pose.position.y - setpoint_i.pose.position.y) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.y
-                    z = (setpoint_f.pose.position.z - setpoint_i.pose.position.z) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.z
+                    # # 7- Compute a linear interpolation between the two setpoints
+                    # x = (setpoint_f.pose.position.x - setpoint_i.pose.position.x) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.x 
+                    # y = (setpoint_f.pose.position.y - setpoint_i.pose.position.y) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.y
+                    # z = (setpoint_f.pose.position.z - setpoint_i.pose.position.z) / (t_f - t_i) * current_segement_time + setpoint_i.pose.position.z
 
-                    # t_slam_cam_to_drone_cam = [self.slam_cam_to_drone_cam.transform.translation.x, 
-                    #                             self.slam_cam_to_drone_cam.transform.translation.y, 
-                    #                             self.slam_cam_to_drone_cam.transform.translation.z]
+
+                    # r =  self.rotated_map_in_slam_frame
                     
-                    # x += t_slam_cam_to_drone_cam[0]
-                    # y += t_slam_cam_to_drone_cam[1]
-                    # z += t_slam_cam_to_drone_cam[2]
+                    # # print("rotated map in slam frame:\n", self.rotated_map_in_slam_frame)
+                    # # print("pos_slam:\n", pos_slam)
+                    # # print("rotated_pos: ", rotated_pos)
+
+                    # pos_slam =  np.array([[x], [y], [z]])
+                    # rotated_pos = np.dot(r[0:3, 0:3], pos_slam)
+                    # x = rotated_pos[0, 0]
+                    # y = rotated_pos[1, 0]
+                    # z = rotated_pos[2, 0]
+                    
+                    # R_i = quaternion_matrix([   
+                    #                             setpoint_i.pose.orientation.x,
+                    #                             setpoint_i.pose.orientation.y,
+                    #                             setpoint_i.pose.orientation.z,
+                    #                             setpoint_i.pose.orientation.w,          
+                    #                                         ])
+                    
+                    # R_f = quaternion_matrix([   
+                    #                             setpoint_f.pose.orientation.x,
+                    #                             setpoint_f.pose.orientation.y,
+                    #                             setpoint_f.pose.orientation.z,
+                    #                             setpoint_f.pose.orientation.w,          
+                    #                                         ])
+                    
+                    # R_i = np.dot( r, R_i)
+                    # R_f = np.dot( r, R_f)
+                    
+                    # z_i = np.array(R_i[0:3, 2])
+                    # z_f = np.array(R_f[0:3, 2])
+
+
+
+                    # yaw_i = np.arctan2(z_i[0], z_i[2])
+                    # yaw_f = np.arctan2(z_f[0], z_f[2])
+
+                    # # _, pitch_i, _= euler_from_quaternion([  setpoint_i.pose.orientation.x,
+                    # #                                         setpoint_i.pose.orientation.y,
+                    # #                                         setpoint_i.pose.orientation.z,
+                    # #                                         setpoint_i.pose.orientation.w])
+                    
+                    # # _, pitch_f, _= euler_from_quaternion([  setpoint_f.pose.orientation.x,
+                    # #                                         setpoint_f.pose.orientation.y,
+                    # #                                         setpoint_f.pose.orientation.z,
+                    # #                                         setpoint_f.pose.orientation.w])
+
+                    # # Pitch in camera frame is yaw in NED frame
+
+                    # # 8- Compute a linear interpolation between the pitch angles
+                    # # pitch = (pitch_f - pitch_i) / (t_f - t_i) * current_segement_time + pitch_i
+                    # yaw = (yaw_f - yaw_i) / (t_f - t_i) * current_segement_time + yaw_i
+
+
+                    # # 9- Handle the conversion from Camera to NED frame
+                    # trajectory_msg = TrajectorySetpoint()
+                    # trajectory_msg.position[0] = z
+                    # trajectory_msg.position[1] = x
+                    # trajectory_msg.position[2] = y
+                    # trajectory_msg.yaw = yaw
+
+                    setpoint = self.path.poses[self.index]
+
+                    x = setpoint.pose.position.x
+                    y = setpoint.pose.position.y
+                    z = setpoint.pose.position.z 
+
+                    t_slam_cam_to_drone_cam = [self.slam_cam_to_drone_cam.transform.translation.x, 
+                                                self.slam_cam_to_drone_cam.transform.translation.y, 
+                                                self.slam_cam_to_drone_cam.transform.translation.z]
+                    
+                    x += t_slam_cam_to_drone_cam[0]
+                    y += t_slam_cam_to_drone_cam[1]
+                    z += t_slam_cam_to_drone_cam[2]
 
                     r =  self.rotated_map_in_slam_frame
-                    
-                    # print("rotated map in slam frame:\n", self.rotated_map_in_slam_frame)
-                    # print("pos_slam:\n", pos_slam)
-                    # print("rotated_pos: ", rotated_pos)
 
                     pos_slam =  np.array([[x], [y], [z]])
                     rotated_pos = np.dot(r[0:3, 0:3], pos_slam)
+                    
                     x = rotated_pos[0, 0]
                     y = rotated_pos[1, 0]
                     z = rotated_pos[2, 0]
-                    
+
                     R_i = quaternion_matrix([   
-                                                setpoint_i.pose.orientation.x,
-                                                setpoint_i.pose.orientation.y,
-                                                setpoint_i.pose.orientation.z,
-                                                setpoint_i.pose.orientation.w,          
-                                                            ])
+                                             setpoint.pose.orientation.x,
+                                             setpoint.pose.orientation.y,
+                                             setpoint.pose.orientation.z,
+                                             setpoint.pose.orientation.w,          
+                                            ])
                     
-                    R_f = quaternion_matrix([   
-                                                setpoint_f.pose.orientation.x,
-                                                setpoint_f.pose.orientation.y,
-                                                setpoint_f.pose.orientation.z,
-                                                setpoint_f.pose.orientation.w,          
-                                                            ])
-                    
-                    R_i = np.dot( r, R_i)
-                    R_f = np.dot( r, R_f)
-                    
+                    R_i = np.dot( r , R_i )
                     z_i = np.array(R_i[0:3, 2])
-                    z_f = np.array(R_f[0:3, 2])
-
-
 
                     yaw_i = np.arctan2(z_i[0], z_i[2])
-                    yaw_f = np.arctan2(z_f[0], z_f[2])
-
-                    _, pitch_i, _= euler_from_quaternion([  setpoint_i.pose.orientation.x,
-                                                            setpoint_i.pose.orientation.y,
-                                                            setpoint_i.pose.orientation.z,
-                                                            setpoint_i.pose.orientation.w])
-                    
-                    _, pitch_f, _= euler_from_quaternion([  setpoint_f.pose.orientation.x,
-                                                            setpoint_f.pose.orientation.y,
-                                                            setpoint_f.pose.orientation.z,
-                                                            setpoint_f.pose.orientation.w])
-
-                    # Pitch in camera frame is yaw in NED frame
-
-                    # 8- Compute a linear interpolation between the pitch angles
-                    # pitch = (pitch_f - pitch_i) / (t_f - t_i) * current_segement_time + pitch_i
-                    yaw = (yaw_f - yaw_i) / (t_f - t_i) * current_segement_time + yaw_i
 
 
-                    # 9- Handle the conversion from Camera to NED frame
                     trajectory_msg = TrajectorySetpoint()
                     trajectory_msg.position[0] = z
                     trajectory_msg.position[1] = x
                     trajectory_msg.position[2] = y
-                    trajectory_msg.yaw = yaw
-
+                    trajectory_msg.yaw = yaw_i
 
                     self.publisher_trajectory.publish(trajectory_msg)
 

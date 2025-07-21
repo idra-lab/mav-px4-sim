@@ -264,8 +264,8 @@ Visualization Manager:
       Voxel Coloring: Z-Axis
       Voxel Alpha: 1.0
       Max. Octree Depth: 16
-      Max. Height Display: 50
-      Min. Height Display: -50
+      Max. Height Display: 70
+      Min. Height Display: -4
       Value: true
     - Class: UncertainPointCloud
       Enabled: false
