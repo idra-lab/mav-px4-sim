@@ -1,6 +1,44 @@
-# PX4 ROS2
+# PX4 ROS2 SIMULATION ENVIRONMENT
+
+## Components: 
+- PX4 Autopilot
+
+Follow installation guidelines from [PX4 Autopilot](https://docs.px4.io/main/en/dev_setup/building_px4)
+
+- QGround Control
+FOllow installation guidelines from [QGroundControl](https://docs.qgroundcontrol.com/master/en/qgc-user-guide/getting_started/download_and_install.html)
+
+- ROS2 Humble
+- Gazebo
+
+Use gazebo version such that it uses `gz` command.
+
+- UNSEEN ORB-SLAM3
+Follow installation guidelines from [ORB-SLAM3](https://github.com/tamasso-parec/PUMA_ORB_SLAM3)
+
+## Submodules
+Update all submodules in the repository:
+```bash
+git submodule update --init --recursive
+```
+
+## Set global paths: 
+In order to run the components, it is necessary to set global paths for PX4, QgroundControl and ORB-SLAM3. 
+
+### PX4
+
+Link the executable to the path [here](https://github.com/idra-lab/mav-px4-sim/blob/d965ba2ed0c13ac6f0bc79b526a841b4da07abd3/src/traj/launch/px4_sim.launch.py#L76)
+
+### QGroundControl
+Link the executable to the path [here](https://github.com/idra-lab/mav-px4-sim/blob/d965ba2ed0c13ac6f0bc79b526a841b4da07abd3/src/traj/launch/px4_sim.launch.py#L158)
+
+### ORB-SLAM3 Node
+
+Link the CMake configuration file to the global path of your orb slam implementation [here](https://github.com/tamasso-parec/ORB_SLAM3_ROS2/blob/acc59d7baaf6d8ae4471b16fb15cf530cb32481d/CMakeModules/FindORB_SLAM3.cmake#L9)
 
 ## Launch demo
+
+
 
 ### Build
 ```bash
