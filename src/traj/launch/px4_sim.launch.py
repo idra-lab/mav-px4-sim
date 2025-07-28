@@ -437,7 +437,7 @@ def generate_launch_description():
 		name='offboard_takeoff',
 		prefix='gnome-terminal --tab --',
 		output='screen', 
-		parameters = [{'altitude': 2.0}]
+		parameters = [{'altitude': 1.5}]
 	)
 
 	takeoff_node_delay = TimerAction(
