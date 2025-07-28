@@ -3,7 +3,7 @@
 ## Components: 
 - PX4 Autopilot
 
-Follow installation guidelines from [PX4 Autopilot](https://docs.px4.io/main/en/dev_setup/building_px4)
+Follow installation guidelines from [PX4 Autopilot ROS2](https://docs.px4.io/main/en/ros2/user_guide.html)
 
 - QGround Control
 FOllow installation guidelines from [QGroundControl](https://docs.qgroundcontrol.com/master/en/qgc-user-guide/getting_started/download_and_install.html)
