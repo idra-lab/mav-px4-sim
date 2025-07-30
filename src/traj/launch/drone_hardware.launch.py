@@ -37,6 +37,22 @@ def generate_launch_description():
 		output='screen'
 	)
 
+    px4_tf_node = Node(
+		package='traj',
+		executable='px4_tf',
+		name='px4_tf',
+		prefix='gnome-terminal --tab --',
+		output='screen'
+	)
+
+    visualizer_node = Node(
+            package='traj',
+            namespace='traj',
+            executable='visualizer',
+            name='visualizer',
+            prefix='gnome-terminal --tab --',
+        )
+
     perception_launcher_path = get_package_share_directory('perception_launcher')
 
     perception_sim_launch = IncludeLaunchDescription(
@@ -67,6 +83,8 @@ def generate_launch_description():
         )
 
     return LaunchDescription([
+        px4_tf_node,
+        visualizer_node,
         slam_map_frame_node,
         perception_sim_launch,
         rviz2_slam
