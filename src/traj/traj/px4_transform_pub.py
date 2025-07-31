@@ -3,6 +3,8 @@ from rclpy.node import Node
 from rclpy.clock import Clock
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 from px4_msgs.msg import VehicleAttitude, VehicleLocalPosition
+from px4_msgs.msg import VehicleOdometry
+
 from tf2_ros import TransformBroadcaster
 from geometry_msgs.msg import TransformStamped
 import numpy as np
@@ -20,6 +22,9 @@ class PX4TransformPublisher(Node):
             depth=1,
         )
 
+        self.declare_parameter("hardware", False)
+        self.hardware_implementation_flag = self.get_parameter("hardware").get_parameter_value().bool_value
+
         self.attitude_sub = self.create_subscription(
             VehicleAttitude,
             '/fmu/out/vehicle_attitude',
@@ -32,6 +37,12 @@ class PX4TransformPublisher(Node):
             self.vehicle_local_position_callback,
             qos_profile,
         )
+
+        self.vehicle_odometry_subscriber = self.create_subscription(
+                                                VehicleOdometry, 
+                                                '/fmu/out/vehicle_odometry', 
+                                                self.vehicle_odometry_callback, 
+                                                qos_profile)
 
         self.br = TransformBroadcaster(self)
         self.vehicle_attitude = np.array([1.0, 0.0, 0.0, 0.0])
@@ -47,11 +58,29 @@ class PX4TransformPublisher(Node):
         self.publish_camera_transform()
 
     def vehicle_local_position_callback(self, msg):
-        self.vehicle_local_position[0] = msg.x
-        self.vehicle_local_position[1] = -msg.y
-        self.vehicle_local_position[2] = -msg.z
-        self.publish_transform()
-        self.publish_camera_transform()
+        if not self.hardware_implementation_flag:
+            self.vehicle_local_position[0] = msg.x
+            self.vehicle_local_position[1] = -msg.y
+            self.vehicle_local_position[2] = -msg.z
+            self.publish_transform()
+            self.publish_camera_transform()
+
+    def vehicle_odometry_callback(self, msg):
+
+        if self.hardware_implementation_flag:
+
+         
+            # TODO: handle NED->ENU transformation
+            self.vehicle_local_position[0] = msg.position[0]
+            self.vehicle_local_position[1] = -msg.position[1]
+            self.vehicle_local_position[2] = -msg.position[2]
+     
+
+            self.publish_transform()
+            self.publish_camera_transform()
+            
+
+
 
     def publish_camera_transform(self):
         t = TransformStamped()

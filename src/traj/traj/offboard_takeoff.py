@@ -81,6 +81,9 @@ class OffboardTakeoff(Node):
         self.declare_parameter('altitude', 2.0)
         self.nav_state = VehicleStatus.NAVIGATION_STATE_MAX
         self.arming_state = VehicleStatus.ARMING_STATE_DISARMED
+
+        self.sent_arm_msg= False
+        self.sent_offboard_msg = False
         
         # Note: no parameter callbacks are used to prevent sudden inflight changes of radii and omega 
         # which would result in large discontinuities in setpoints
@@ -133,12 +136,15 @@ class OffboardTakeoff(Node):
         self.nav_state = msg.nav_state
         self.arming_state = msg.arming_state
 
-        if self.arming_state != VehicleStatus.ARMING_STATE_ARMED:
+        if self.arming_state != VehicleStatus.ARMING_STATE_ARMED and not self.sent_arm_msg:
             self.arm()
+            self.sent_arm_msg = True
 
         if msg.nav_state == VehicleStatus.NAVIGATION_STATE_AUTO_LOITER or msg.nav_state == VehicleStatus.NAVIGATION_STATE_POSCTL:
-            print("NAV_STATE: OFFBOARD")
-            self.set_offboard_mode()
+            if not self.sent_offboard_msg:
+                print("NAV_STATE: OFFBOARD")
+                self.set_offboard_mode()
+                self.sent_offboard_msg = True
 
     def vehicle_local_position_callback(self, msg):
 
@@ -148,7 +154,7 @@ class OffboardTakeoff(Node):
             self.takeoff_completed = True
 
     def cmdloop_callback(self):
-        # Publish offboard control modes
+        # Publish offboard control modes+
         offboard_msg = OffboardControlMode()
         offboard_msg.timestamp = int(Clock().now().nanoseconds / 1000)
         offboard_msg.position=True
@@ -170,7 +176,7 @@ class OffboardTakeoff(Node):
                 trajectory_msg.velocity[0] = 0
                 trajectory_msg.velocity[1] = 0
                 trajectory_msg.velocity[2] = 0.0
-                trajectory_msg.yaw = self.heading 
+                trajectory_msg.yaw = self.heading
                 
 
                 self.publisher_takeoff.publish(trajectory_msg)

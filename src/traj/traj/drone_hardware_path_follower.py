@@ -198,9 +198,8 @@ class DronePathFollower(Node):
             offboard_msg.acceleration=False
             self.publisher_offboard_mode.publish(offboard_msg)
 
-            # TODO: Change this back
-            if True:
-            # if (self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD and self.arming_state == VehicleStatus.ARMING_STATE_ARMED):
+            
+            if (self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD and self.arming_state == VehicleStatus.ARMING_STATE_ARMED):
 
                 # 1- Check time elapsed since path start in seconds
                 elapsed_time = (self.get_clock().now().nanoseconds - self.path_start_time) / 1e9

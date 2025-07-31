@@ -42,7 +42,8 @@ def generate_launch_description():
 		executable='px4_tf',
 		name='px4_tf',
 		prefix='gnome-terminal --tab --',
-		output='screen'
+		output='screen',
+        parameters = [{'hardware': True}]
 	)
 
     visualizer_node = Node(
@@ -51,6 +52,7 @@ def generate_launch_description():
             executable='visualizer',
             name='visualizer',
             prefix='gnome-terminal --tab --',
+            parameters = [{'hardware': True}]
         )
 
     perception_launcher_path = get_package_share_directory('perception_launcher')
