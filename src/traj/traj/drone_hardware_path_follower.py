@@ -53,6 +53,9 @@ from geometry_msgs.msg import PoseStamped, Point
 
 import sys
 
+from collections import deque
+
+from scipy.spatial.transform import Rotation as R
 
 
 from nav_msgs.msg import Path
@@ -92,6 +95,38 @@ def homogeneous_transform_matrix_tf(tf_trafo: TransformStamped):
     rotation[0:3, 3] = translation.flatten()  # Set translation in the last column
 
     return rotation
+
+
+class SE3Filter:
+    def __init__(self, max_len=20):
+        self.transforms = deque(maxlen=max_len)
+        
+
+    def push(self, T):
+        self.transforms.append(T)
+
+    def get_smoothed(self):
+        if not self.transforms:
+            return np.eye(4)
+
+        # Average translation
+        translations = np.array([T[:3, 3] for T in self.transforms])
+        # print(translations)
+        t_avg = np.mean(translations, axis=0)
+
+        # print(t_avg)
+
+        # Average rotation (using scipy)
+        rotations = R.from_matrix([T[:3, :3] for T in self.transforms])
+        # print(rotations)
+        r_avg = rotations.mean().as_matrix()
+        # print(r_avg)
+
+
+        T_avg = np.eye(4)
+        T_avg[:3, :3] = r_avg
+        T_avg[:3, 3] = t_avg
+        return T_avg
     
 
 class DronePathFollower(Node):
@@ -147,48 +182,12 @@ class DronePathFollower(Node):
         
         self.nav_state = VehicleStatus.NAVIGATION_STATE_MAX
         self.arming_state = VehicleStatus.ARMING_STATE_DISARMED
+
+        self.se3_filter = SE3Filter(max_len=20)
     
     def tf_timer(self):
-        if not self.static_transform_set:
-            # Store frame names in variables that will be used to
-            # compute transformations
-         
-            try: 
-                self.slam_map_to_map = self.tf_buffer.lookup_transform(
-                    'map',
-                    'slam_map',
-                    rclpy.time.Time())
-                
 
-                
-            except TransformException as ex:
-                self.get_logger().info(
-                    f'Could not transform slam_map to map: {ex}')
-                return
-            
-            self.r_slam_map_to_map = quaternion_matrix([   
-                                                            self.slam_map_to_map.transform.rotation.x,
-                                                            self.slam_map_to_map.transform.rotation.y,
-                                                            self.slam_map_to_map.transform.rotation.z,
-                                                            self.slam_map_to_map.transform.rotation.w
-                                                            ])
-            
-            self.T_slam_map_to_map = homogeneous_transform_matrix_tf(self.slam_map_to_map)
-
-
-            
-
-            self.camera_color_optical_to_camera_color = self.tf_buffer.lookup_transform(
-                'camera_color_frame',
-                'camera_color_optical_frame',
-                rclpy.time.Time())
-            
-
-            self.camera_color_optical_to_camera_color = homogeneous_transform_matrix_tf(self.camera_color_optical_to_camera_color)
-
-            self.static_transform_set = True
-
-
+        # We immediately check if we need to stop the drone
         try: 
             self.drone_to_camera_color = self.tf_buffer.lookup_transform(
                 'camera_color_frame',
@@ -217,6 +216,91 @@ class DronePathFollower(Node):
             rclpy.shutdown()
             sys.exit()
 
+
+        if not self.static_transform_set:
+            # Store frame names in variables that will be used to
+            # compute transformations
+         
+            try: 
+                self.slam_map_to_map = self.tf_buffer.lookup_transform(
+                    'map',
+                    'slam_map',
+                    rclpy.time.Time())
+                
+
+                
+            except TransformException as ex:
+                self.get_logger().info(
+                    f'Could not transform slam_map to map: {ex}')
+                return
+            
+            self.r_slam_map_to_map = quaternion_matrix([   
+                                                            self.slam_map_to_map.transform.rotation.x,
+                                                            self.slam_map_to_map.transform.rotation.y,
+                                                            self.slam_map_to_map.transform.rotation.z,
+                                                            self.slam_map_to_map.transform.rotation.w
+                                                            ])
+            
+            self.T_slam_map_to_map = homogeneous_transform_matrix_tf(self.slam_map_to_map)
+
+            self.T_map_to_slam_map = np.linalg.inv(self.T_slam_map_to_map)
+
+
+            
+
+            self.camera_color_optical_to_camera_color = self.tf_buffer.lookup_transform(
+                'camera_color_frame',
+                'camera_color_optical_frame',
+                rclpy.time.Time())
+            
+
+            self.T_camera_color_optical_to_camera_color = homogeneous_transform_matrix_tf(self.camera_color_optical_to_camera_color)
+
+            self.static_transform_set = True
+
+
+        
+
+        try: 
+            self.drone_to_map = self.tf_buffer.lookup_transform(
+                "map",
+                "drone",
+                rclpy.time.Time())
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform map to drone: {ex}')
+            return
+        
+        # We need first a new frame representing the drone in map but with optical orientation
+        self.T_drone_to_map = homogeneous_transform_matrix_tf(self.drone_to_map)
+        self.T_drone_optical_to_map = np.eye(4)
+        self.T_drone_optical_to_map[0:3, 0:3] = self.T_map_to_slam_map[0:3, 0:3] @ self.T_drone_to_map[0:3, 0:3]
+        self.T_drone_optical_to_map[0:3, 3] = self.T_drone_to_map[0:3, 3]
+
+        # We made up a new frame and we can transform this into the slam map frame
+        self.T_drone_optical_to_slam_map = np.dot(self.T_map_to_slam_map, self.T_drone_optical_to_map)
+
+        # We need to compute the difference between the drone optical frame and the tracked camera optical color frame
+
+        try: 
+            self.slam_map_to_camera_color_optical = self.tf_buffer.lookup_transform(
+                "camera_color_optical_frame",
+                "slam_map",
+                rclpy.time.Time())
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform slam_map to camera_color_optical_frame: {ex}')
+            return
+        
+        self.T_slam_map_to_camera_color_optical = homogeneous_transform_matrix_tf(self.slam_map_to_camera_color_optical)
+
+        self.T_drone_optical_to_camera_color_optical = np.dot(self.T_slam_map_to_camera_color_optical, self.T_drone_optical_to_slam_map)
+
+        self.se3_filter.push(self.T_drone_optical_to_camera_color_optical)
+
+        self.filtered_T_drone_optical_to_camera_color_optical = self.se3_filter.get_smoothed()
+
+        
                                                 
         
         
@@ -256,9 +340,9 @@ class DronePathFollower(Node):
         self.nav_state = msg.nav_state
         self.arming_state = msg.arming_state
 
-        if msg.nav_state == VehicleStatus.NAVIGATION_STATE_AUTO_LOITER and self.publish_setpoints_flag:
-            # print("NAV_STATE: OFFBOARD")
-            self.set_offboard_mode()
+        # if msg.nav_state == VehicleStatus.NAVIGATION_STATE_AUTO_LOITER and self.publish_setpoints_flag:
+        #     # print("NAV_STATE: OFFBOARD")
+        #     self.set_offboard_mode()
 
 
 
@@ -268,6 +352,13 @@ class DronePathFollower(Node):
         self.index = 1
         self.publish_setpoints_flag = True
         self.get_logger().info("Path Received")
+
+        offboard_msg = OffboardControlMode()
+        offboard_msg.timestamp = int(Clock().now().nanoseconds / 1000)
+        offboard_msg.position=True
+        offboard_msg.velocity=False
+        offboard_msg.acceleration=False
+        self.publisher_offboard_mode.publish(offboard_msg)
 
     def cmdloop_callback(self):
 
@@ -303,6 +394,10 @@ class DronePathFollower(Node):
                     
                     T_setpoint_optical_to_slam_map = homogeneous_transform_matrix_pose(self.path.poses[self.index])
 
+                    # filtered_T_drone_optical_to_camera_color_optical = self.se3_filter.get_smoothed()
+
+                    T_drone_optical_setpoint_to_slam_map = np.dot(T_setpoint_optical_to_slam_map, self.T_drone_optical_to_camera_color_optical)
+
                     # T_setpoint_optical_to_map = np.dot(self.T_slam_map_to_map, T_setpoint_optical_to_slam_map)
 
                     # T_setpoint_cam_to_slam_map = self.camera_color_optical_to_camera_color @ T_setpoint_optical_to_slam_map
@@ -337,21 +432,25 @@ class DronePathFollower(Node):
                     #                          setpoint.pose.orientation.w,          
                     #                         ])
                     
-                    R_i = T_setpoint_optical_to_slam_map[0:3, 0:3]
-                    pos = T_setpoint_optical_to_slam_map[0:3, 3]
+                    R_i = T_drone_optical_setpoint_to_slam_map[0:3, 0:3]
+                    pos = T_drone_optical_setpoint_to_slam_map[0:3, 3]
                     # R_i = np.dot( r , R_i )
-                    x_i = np.array(R_i[0:3, 2])
+                    z_i = np.array(R_i[0:3, 2])
+
+                    print("Z_i: ", z_i)
 
                     # # x_i = np.array(T_offset_setpoint_to_map[0:3, 0])
 
-                    yaw_i = np.arctan2(x_i[0], x_i[2])
+                    # TODO: There is a mistake here
+                    yaw_i = np.arctan2(z_i[2], z_i[0])
+                    # yaw_i = 0.0
 
                     # # pos = T_offset_setpoint_to_map[0:3, 3]
                     # pos = rotated_pos
 
                     x, y, z = pos
 
-                    print("Position: ", pos)
+                    print("Yaw: ", yaw_i)
 
 
                     trajectory_msg = TrajectorySetpoint()
