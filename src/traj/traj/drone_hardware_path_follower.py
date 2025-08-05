@@ -51,10 +51,48 @@ from px4_msgs.msg import VehicleLocalPosition
 
 from geometry_msgs.msg import PoseStamped, Point
 
+import sys
+
+
 
 from nav_msgs.msg import Path
 from tf2_ros import TransformListener, Buffer
-from tf2_ros import TransformException
+from tf2_ros import TransformException, TransformStamped
+
+def homogeneous_transform_matrix_pose(pose: PoseStamped):
+    """
+    Convert a PoseStamped message to a homogeneous transformation matrix.
+    """
+    translation = np.array([[pose.pose.position.x],
+                            [pose.pose.position.y],
+                            [pose.pose.position.z]])
+    
+    rotation = quaternion_matrix([pose.pose.orientation.x,
+                                  pose.pose.orientation.y,
+                                  pose.pose.orientation.z,
+                                  pose.pose.orientation.w])
+    
+    rotation[0:3, 3] = translation.flatten()  # Set translation in the last column
+    
+    return rotation
+
+def homogeneous_transform_matrix_tf(tf_trafo: TransformStamped):
+    """
+    Convert a TransformStamped message to a homogeneous transformation matrix.
+    """
+    translation = np.array([[tf_trafo.transform.translation.x],
+                            [tf_trafo.transform.translation.y],
+                            [tf_trafo.transform.translation.z]])
+
+    rotation = quaternion_matrix([tf_trafo.transform.rotation.x,
+                                  tf_trafo.transform.rotation.y,
+                                  tf_trafo.transform.rotation.z,
+                                  tf_trafo.transform.rotation.w])
+
+    rotation[0:3, 3] = translation.flatten()  # Set translation in the last column
+
+    return rotation
+    
 
 class DronePathFollower(Node):
 
@@ -135,8 +173,53 @@ class DronePathFollower(Node):
                                                             self.slam_map_to_map.transform.rotation.w
                                                             ])
             
-            self.static_transform_set = True
+            self.T_slam_map_to_map = homogeneous_transform_matrix_tf(self.slam_map_to_map)
+
+
             
+
+            self.camera_color_optical_to_camera_color = self.tf_buffer.lookup_transform(
+                'camera_color_frame',
+                'camera_color_optical_frame',
+                rclpy.time.Time())
+            
+
+            self.camera_color_optical_to_camera_color = homogeneous_transform_matrix_tf(self.camera_color_optical_to_camera_color)
+
+            self.static_transform_set = True
+
+
+        try: 
+            self.drone_to_camera_color = self.tf_buffer.lookup_transform(
+                'camera_color_frame',
+                'drone',
+                rclpy.time.Time())
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform camera_slam to drone: {ex}')
+            return
+        
+        self.r_drone_to_camera_color = quaternion_matrix([   
+                                                            self.drone_to_camera_color.transform.rotation.x,
+                                                            self.drone_to_camera_color.transform.rotation.y,
+                                                            self.drone_to_camera_color.transform.rotation.z,
+                                                            self.drone_to_camera_color.transform.rotation.w
+                                                            ])
+        
+        self.t_drone_to_camera_color = np.array([[self.drone_to_camera_color.transform.translation.x],
+                                                 [self.drone_to_camera_color.transform.translation.y],
+                                                 [self.drone_to_camera_color.transform.translation.z]])
+        
+        self.T_drone_to_camera_color = homogeneous_transform_matrix_tf(self.drone_to_camera_color)
+
+        if (np.linalg.norm(self.t_drone_to_camera_color) > 1.0): 
+            self.set_hold_mode()
+            rclpy.shutdown()
+            sys.exit()
+
+                                                
+        
+        
 
     def set_hold_mode(self):
         msg = VehicleCommand()
@@ -199,7 +282,8 @@ class DronePathFollower(Node):
             self.publisher_offboard_mode.publish(offboard_msg)
 
             
-            if (self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD and self.arming_state == VehicleStatus.ARMING_STATE_ARMED):
+            # if (self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD and self.arming_state == VehicleStatus.ARMING_STATE_ARMED):
+            if True:
 
                 # 1- Check time elapsed since path start in seconds
                 elapsed_time = (self.get_clock().now().nanoseconds - self.path_start_time) / 1e9
@@ -215,36 +299,59 @@ class DronePathFollower(Node):
 
                         if self.index == len(self.path.poses) -1:
                             return
+                        
                     
+                    T_setpoint_optical_to_slam_map = homogeneous_transform_matrix_pose(self.path.poses[self.index])
+
+                    # T_setpoint_optical_to_map = np.dot(self.T_slam_map_to_map, T_setpoint_optical_to_slam_map)
+
+                    # T_setpoint_cam_to_slam_map = self.camera_color_optical_to_camera_color @ T_setpoint_optical_to_slam_map
+
+                    # T_setpoint_cam_to_map = np.dot(self.T_slam_map_to_map, T_setpoint_cam_to_slam_map)
+
+                    # T_offset_setpoint_to_map = np.dot(T_setpoint_cam_to_map, self.T_drone_to_camera_color)
+
+                    # print(T_offset_setpoint_to_map)
+
+                    # setpoint = self.path.poses[self.index]
+
+                    # x = setpoint.pose.position.x
+                    # y = setpoint.pose.position.y
+                    # z = setpoint.pose.position.z 
+
+
+                    # r =  self.r_slam_map_to_map
+
+                    # pos_slam =  np.array([[x], [y], [z]])
+
+
+                    # rotated_pos = np.dot(r[0:3, 0:3], pos_slam)
+
+                    # # rotated_pos = rotated_pos + self.t_drone_to_camera_color
                     
 
-                    setpoint = self.path.poses[self.index]
-
-                    x = setpoint.pose.position.x
-                    y = setpoint.pose.position.y
-                    z = setpoint.pose.position.z 
-
-
-                    r =  self.r_slam_map_to_map
-
-                    pos_slam =  np.array([[x], [y], [z]])
-                    rotated_pos = np.dot(r[0:3, 0:3], pos_slam)
+                    # R_i = quaternion_matrix([   
+                    #                          setpoint.pose.orientation.x,
+                    #                          setpoint.pose.orientation.y,
+                    #                          setpoint.pose.orientation.z,
+                    #                          setpoint.pose.orientation.w,          
+                    #                         ])
                     
-                    # x = rotated_pos[0, 0]
-                    # y = rotated_pos[1, 0]
-                    # z = rotated_pos[2, 0]
-
-                    R_i = quaternion_matrix([   
-                                             setpoint.pose.orientation.x,
-                                             setpoint.pose.orientation.y,
-                                             setpoint.pose.orientation.z,
-                                             setpoint.pose.orientation.w,          
-                                            ])
-                    
-                    R_i = np.dot( r , R_i )
+                    R_i = T_setpoint_optical_to_slam_map[0:3, 0:3]
+                    pos = T_setpoint_optical_to_slam_map[0:3, 3]
+                    # R_i = np.dot( r , R_i )
                     x_i = np.array(R_i[0:3, 2])
 
-                    yaw_i = np.arctan2(x_i[1], x_i[0])
+                    # # x_i = np.array(T_offset_setpoint_to_map[0:3, 0])
+
+                    yaw_i = np.arctan2(x_i[0], x_i[2])
+
+                    # # pos = T_offset_setpoint_to_map[0:3, 3]
+                    # pos = rotated_pos
+
+                    x, y, z = pos
+
+                    print("Position: ", pos)
 
 
                     trajectory_msg = TrajectorySetpoint()
@@ -252,6 +359,11 @@ class DronePathFollower(Node):
                     trajectory_msg.position[1] = x
                     trajectory_msg.position[2] = y
                     trajectory_msg.yaw = yaw_i
+
+                    # trajectory_msg.position[0] = pos[0]
+                    # trajectory_msg.position[1] = -pos[1]
+                    # trajectory_msg.position[2] = -pos[2]
+                    # trajectory_msg.yaw = -yaw_i
 
                     self.publisher_trajectory.publish(trajectory_msg)
 
