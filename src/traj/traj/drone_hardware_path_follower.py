@@ -273,14 +273,32 @@ class DronePathFollower(Node):
         
         # We need first a new frame representing the drone in map but with optical orientation
         self.T_drone_to_map = homogeneous_transform_matrix_tf(self.drone_to_map)
+
+        
+        """
+        # In theory we can directly take this from the realsense sdf model on the drone
         self.T_drone_optical_to_map = np.eye(4)
         self.T_drone_optical_to_map[0:3, 0:3] = self.T_map_to_slam_map[0:3, 0:3] @ self.T_drone_to_map[0:3, 0:3]
         self.T_drone_optical_to_map[0:3, 3] = self.T_drone_to_map[0:3, 3]
 
         # We made up a new frame and we can transform this into the slam map frame
-        self.T_drone_optical_to_slam_map = np.dot(self.T_map_to_slam_map, self.T_drone_optical_to_map)
-
         # We need to compute the difference between the drone optical frame and the tracked camera optical color frame
+        self.T_drone_optical_to_slam_map = np.dot(self.T_map_to_slam_map, self.T_drone_optical_to_map) 
+        
+        """
+
+        try: 
+            self.drone_optical_to_slam_map = self.tf_buffer.lookup_transform(
+                "slam_map",
+                "x500_realsense/realsense_d435/base_link/realsense_d435",
+                rclpy.time.Time())
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform slam_map to drone_optical_frame: {ex}')
+            return
+
+        self.T_drone_optical_to_slam_map = homogeneous_transform_matrix_tf(self.drone_optical_to_slam_map)
+
 
         try: 
             self.slam_map_to_camera_color_optical = self.tf_buffer.lookup_transform(
@@ -293,8 +311,21 @@ class DronePathFollower(Node):
             return
         
         self.T_slam_map_to_camera_color_optical = homogeneous_transform_matrix_tf(self.slam_map_to_camera_color_optical)
+        
 
-        self.T_drone_optical_to_camera_color_optical = np.dot(self.T_slam_map_to_camera_color_optical, self.T_drone_optical_to_slam_map)
+        try: 
+            self.drone_optical_to_camera_color_optical = self.tf_buffer.lookup_transform(
+                "camera_color_optical_frame",
+                "x500_realsense/realsense_d435/base_link/realsense_d435",
+                rclpy.time.Time())
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform camera_color_optical_frame to drone_optical_frame: {ex}')
+            return
+        
+        self.T_drone_optical_to_camera_color_optical = homogeneous_transform_matrix_tf(self.drone_optical_to_camera_color_optical)
+
+        # self.T_drone_optical_to_camera_color_optical = np.dot(self.T_slam_map_to_camera_color_optical, self.T_drone_optical_to_slam_map)
 
         self.se3_filter.push(self.T_drone_optical_to_camera_color_optical)
 
@@ -442,7 +473,7 @@ class DronePathFollower(Node):
                     # # x_i = np.array(T_offset_setpoint_to_map[0:3, 0])
 
                     # TODO: There is a mistake here
-                    yaw_i = np.arctan2(z_i[2], z_i[0])
+                    yaw_i = np.arctan2(z_i[0], z_i[2])
                     # yaw_i = 0.0
 
                     # # pos = T_offset_setpoint_to_map[0:3, 3]
