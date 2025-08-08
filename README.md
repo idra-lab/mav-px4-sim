@@ -1,5 +1,6 @@
 # PX4 ROS2 SIMULATION ENVIRONMENT
-
+## Dependencies
+`sudo apt install libompl-dev`
 ## Components: 
 - PX4 Autopilot
 
