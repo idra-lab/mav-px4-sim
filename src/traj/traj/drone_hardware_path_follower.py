@@ -183,6 +183,8 @@ class DronePathFollower(Node):
         self.nav_state = VehicleStatus.NAVIGATION_STATE_MAX
         self.arming_state = VehicleStatus.ARMING_STATE_DISARMED
 
+        self.switched_once_to_offboard = False
+
         self.se3_filter = SE3Filter(max_len=20)
     
     def tf_timer(self):
@@ -371,9 +373,20 @@ class DronePathFollower(Node):
         self.nav_state = msg.nav_state
         self.arming_state = msg.arming_state
 
+        # If at any point we find ourselves to be in offboard mode, we set the flag to true
+        if msg.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
+            self.switched_once_to_offboard = True
+
         # if msg.nav_state == VehicleStatus.NAVIGATION_STATE_AUTO_LOITER and self.publish_setpoints_flag:
         #     # print("NAV_STATE: OFFBOARD")
         #     self.set_offboard_mode()
+
+        offboard_msg = OffboardControlMode()
+        offboard_msg.timestamp = int(Clock().now().nanoseconds / 1000)
+        offboard_msg.position=True
+        offboard_msg.velocity=False
+        offboard_msg.acceleration=False
+        self.publisher_offboard_mode.publish(offboard_msg)
 
 
 
@@ -381,9 +394,25 @@ class DronePathFollower(Node):
         self.path = msg
         self.path_start_time = self.get_clock().now().nanoseconds
         self.index = 1
+
+        # Store the previous value. If it was false, it means we either completed a previous path or we just started the node.
+        old_publish_setpoint_flag = bool(self.publish_setpoints_flag)
+
+        # We received a new path, so we need to publish the setpoints now
         self.publish_setpoints_flag = True
         self.get_logger().info("Path Received")
 
+        """ We want to guarantee that the drone never enters offboard control mode unless we do it manually or on the first path received. """
+
+        # If we were not publishing poses, we were in position control mode and we are armed, we enter
+        if old_publish_setpoint_flag == False and self.nav_state == VehicleStatus.NAVIGATION_STATE_POSCTL and self.arming_state == VehicleStatus.ARMING_STATE_ARMED:
+
+            # If we know we had never switched to offboard mode before, we set the offboard mode
+            if self.switched_once_to_offboard == False:
+                self.set_offboard_mode()
+                # Now we know we have switched at least once to offboard mode
+                self.switched_once_to_offboard = True
+    
         offboard_msg = OffboardControlMode()
         offboard_msg.timestamp = int(Clock().now().nanoseconds / 1000)
         offboard_msg.position=True
@@ -393,8 +422,8 @@ class DronePathFollower(Node):
 
     def cmdloop_callback(self):
 
-        # Publish offboard control modes
-        if self.publish_setpoints_flag:
+        # Publish offboard control modes for the px4 to remain in offboard mode
+        if self.publish_setpoints_flag and self.switched_once_to_offboard:
 
             offboard_msg = OffboardControlMode()
             offboard_msg.timestamp = int(Clock().now().nanoseconds / 1000)
@@ -405,7 +434,7 @@ class DronePathFollower(Node):
 
             
             # if (self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD and self.arming_state == VehicleStatus.ARMING_STATE_ARMED):
-            if True:
+            if self.arming_state == VehicleStatus.ARMING_STATE_ARMED and not self.nav_state == VehicleStatus.NAVIGATION_STATE_POSCTL:
 
                 # 1- Check time elapsed since path start in seconds
                 elapsed_time = (self.get_clock().now().nanoseconds - self.path_start_time) / 1e9
@@ -468,7 +497,7 @@ class DronePathFollower(Node):
                     # R_i = np.dot( r , R_i )
                     z_i = np.array(R_i[0:3, 2])
 
-                    print("Z_i: ", z_i)
+                    # print("Z_i: ", z_i)
 
                     # # x_i = np.array(T_offset_setpoint_to_map[0:3, 0])
 
@@ -481,7 +510,7 @@ class DronePathFollower(Node):
 
                     x, y, z = pos
 
-                    print("Yaw: ", yaw_i)
+                    # print("Yaw: ", yaw_i)
 
 
                     trajectory_msg = TrajectorySetpoint()
