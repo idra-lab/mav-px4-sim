@@ -39,7 +39,7 @@ def generate_launch_description():
 
 	# Wrap the uncertain_planner IncludeLaunchDescription in a TimerAction to delay its launch
 	delayed_uncertain_planner = TimerAction(
-		period=5.0,  # delay in seconds
+		period=1.0,  # delay in seconds
 		actions=[uncertain_planner]
 	)
 

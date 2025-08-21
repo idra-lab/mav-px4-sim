@@ -14,12 +14,37 @@ from launch.substitutions import PathJoinSubstitution, TextSubstitution, ThisLau
 from launch_ros.substitutions import FindPackageShare
 from ament_index_python.packages import get_package_share_directory
 
+from launch.actions import TimerAction
+
+def add_all_actions(ld, actions):
+	for action in actions:
+		
+		ld.add_action(action)
 
 
 def generate_launch_description():
 
-    # TODO: Add a static transform for the map frame or check if PX4 will deliver one
+	# Setup the launch description
+    ##############################################################################
+    ld = LaunchDescription()
+    
+    # Paths to package directories
+    ##############################################################################
+    pkg_traj = get_package_share_directory('traj')
+    perception_launcher_path = get_package_share_directory('perception_launcher')
 
+	
+    hardware_arg = DeclareLaunchArgument(
+        'hardware',
+        default_value='true',
+        description='Flag to enable hardware mode'
+    )
+	
+    ld.add_action(hardware_arg)
+    hardware = LaunchConfiguration('hardware')
+
+    # TF actions
+	
     slam_to_map_quat = [-0.5, 0.5, -0.5, -0.5]
 
     slam_map_frame_node = Node(
@@ -43,19 +68,15 @@ def generate_launch_description():
 		name='px4_tf',
 		prefix='gnome-terminal --tab --',
 		output='screen',
-        parameters = [{'hardware': True}]
+        parameters = [{'hardware': hardware}]
 	)
+	
+    add_all_actions(ld, [px4_tf_node, slam_map_frame_node])
+	
 
-    visualizer_node = Node(
-            package='traj',
-            namespace='traj',
-            executable='visualizer',
-            name='visualizer',
-            prefix='gnome-terminal --tab --',
-            parameters = [{'hardware': True}]
-        )
 
-    perception_launcher_path = get_package_share_directory('perception_launcher')
+    
+
 
     perception_sim_launch = IncludeLaunchDescription(
                             PythonLaunchDescriptionSource(
@@ -69,11 +90,13 @@ def generate_launch_description():
 
                             # 'src/realsense-ros/realsense2_camera/examples/pointcloud/rs_d455_pointcloud_launch.py')
     )
+	
+    add_all_actions(ld, [perception_sim_launch])
 
-    pkg_traj = get_package_share_directory('traj')
 
 
-
+    # Visualization actions
+	
     rviz2_slam = Node(
             package='rviz2',
             namespace='',
@@ -83,13 +106,45 @@ def generate_launch_description():
             output='screen',
             parameters=[{'use_sim_time': False}]
         )
+	
+    visualizer_node = Node(
+        package='traj',
+        namespace='traj',
+        executable='visualizer',
+        name='visualizer',
+        prefix='gnome-terminal --tab --',
+        parameters=[{'hardware': hardware}]
+    )
+	
+    add_all_actions(ld, [rviz2_slam, visualizer_node])
+	
 
-    return LaunchDescription([
-        px4_tf_node,
-        visualizer_node,
-        slam_map_frame_node,
-        perception_sim_launch,
-        rviz2_slam
-    ])
+    # Trajectory utilities actions
+    takeoff_node = Node(
+		package='traj',
+		executable='offboard_takeoff',
+		name='offboard_takeoff',
+		prefix='gnome-terminal --tab --',
+		output='screen', 
+		parameters = [{'altitude': 0.5, 'takeoff_speed': 0.5, 'hardware': True}]  # altitude in meters, takeoff_speed in m/s
+	)
+
+    takeoff_node_delay = TimerAction(
+		period=15.0,  # delay in seconds
+		actions=[takeoff_node]
+	)
+
+
+    traj_utilities_nodes = [
+		takeoff_node_delay,
+	]
+
+    # add_all_actions(ld, traj_utilities_nodes)
+	
+
+
+
+
+    return ld
     
     
