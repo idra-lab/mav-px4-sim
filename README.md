@@ -111,3 +111,41 @@ ros2 run traj land_disarm
 ```bash
 ros2 run uncertain_planner drone_planner slam_map
 ```
+
+# Experiments
+
+### Rock 4c+ 
+Everything is taken care of by running:
+```bash
+px4_modules
+```
+
+### Raspberry Pi 4
+Currently only run streaming of the camera and depth data:
+```bash
+rs_launch
+```
+
+### All terminals on the commander computer
+```bash
+source aliases
+```
+
+### Terminal 1
+This command launches all necessary nodes to run the hardware:
+```bash
+run_hardware
+```
+
+### Terminal 2
+Once the drone has taken off (either manually or enabling the takeoff sequence with `takeoff`), run the following command to start the planner:
+```bash
+run_hardware_planner
+```
+
+### Terminal 3 
+To record the bag file:
+```bash
+record_experiment
+```
+
