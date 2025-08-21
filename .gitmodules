@@ -4,9 +4,6 @@
 [submodule "src/micro_ros_setup"]
 	path = src/micro_ros_setup
 	url = https://github.com/micro-ROS/micro_ros_setup.git
-[submodule "ROS2_PX4_Offboard_Example"]
-	path = ROS2_PX4_Offboard_Example
-	url = git@github.com:ARK-Electronics/ROS2_PX4_Offboard_Example.git
 [submodule "src/optimizer/gauss_splat_plan"]
 	path = src/optimizer/gauss_splat_plan
 	url = git@github.com:idra-lab/gauss_splat_plan.git

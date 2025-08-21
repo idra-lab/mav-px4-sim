@@ -1,0 +1,15 @@
+topics: 
+- /camera/camera/color/image_raw/compressed
+- /camera/camera/aligned_depth_to_color/image_raw/compressedDepth
+- /drone_path
+- /fmu/in/trajectory_setpoint
+- /fmu/out/vehicle_odometry
+- /fmu/out/vehicle_attitude
+- /px4_visualizer/setpoint_path
+- /px4_visualizer/vehicle_path
+- /px4_visualizer/vehicle_pose
+- /px4_visualizer/vehicle_velocity
+- /slam/pose_with_covariance
+- /slam/tracked_pose
+- /slam/uncertain_point_cloud
+- /octomap_full
