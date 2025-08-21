@@ -441,7 +441,7 @@ def generate_launch_description():
 	)
 
 	takeoff_node_delay = TimerAction(
-		period=15.0,  # delay in seconds
+		period=5.0,  # delay in seconds
 		actions=[takeoff_node]
 	)
 

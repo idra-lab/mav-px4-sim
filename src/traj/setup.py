@@ -33,6 +33,7 @@ setup(
             'arm_takeoff = traj.arm_takeoff:main',
             'offboard_control = traj.offboard_control:main',
             'drone_path_follower = traj.drone_path_follower:main',
+            'drone_hardware_path_follower = traj.drone_hardware_path_follower:main',
             'offboard_takeoff = traj.offboard_takeoff:main',
             'visualizer = traj.visualizer:main',
             'px4_tf = traj.px4_transform_pub:main',

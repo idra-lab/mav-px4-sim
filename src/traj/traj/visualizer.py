@@ -177,7 +177,6 @@ class PX4Visualizer(Node):
             self.vehicle_local_velocity[2] = -msg.vz
 
 
-            print("Vehicle Local Position: ", self.vehicle_local_position)
 
 
     def vehicle_odometry_callback(self, msg):
@@ -207,7 +206,6 @@ class PX4Visualizer(Node):
             self.vehicle_local_velocity[2] = -msg.velocity[2]
 
 
-            print("Vehicle Odometry position: ", self.vehicle_local_position)
 
     def trajectory_setpoint_callback(self, msg):
         self.setpoint_position[0] = msg.position[0]

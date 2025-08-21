@@ -47,6 +47,7 @@ from px4_msgs.msg import TrajectorySetpoint
 from px4_msgs.msg import VehicleStatus
 from px4_msgs.msg import VehicleCommand
 from px4_msgs.msg import VehicleLocalPosition
+from px4_msgs.msg import VehicleOdometry
 
 
 class OffboardTakeoff(Node):
@@ -60,6 +61,22 @@ class OffboardTakeoff(Node):
             depth=1
         )
 
+        self.declare_parameter('altitude', 2.0)
+        self.declare_parameter('takeoff_speed', 0.5)
+        self.declare_parameter('hardware', False)
+
+        
+        self.altitude = self.get_parameter('altitude').value
+        self.takeoff_speed = self.get_parameter('takeoff_speed').value # m/s
+        self.hardware_implementation_flag = self.get_parameter("hardware").get_parameter_value().bool_value
+
+        print("Altitude: ", self.altitude)
+        print("Takeoff Speed: ", self.takeoff_speed)
+        self.get_logger().info("Hardware implementation flag: " + str(self.hardware_implementation_flag))
+        
+        
+        
+        
         self.status_sub = self.create_subscription(
             VehicleStatus,
             '/fmu/out/vehicle_status',
@@ -67,18 +84,27 @@ class OffboardTakeoff(Node):
             qos_profile)
         
         #Create subscriptions
-        self.local_pos_sub = self.create_subscription(
-            VehicleLocalPosition,
-            '/fmu/out/vehicle_local_position',
-            self.vehicle_local_position_callback,
-            qos_profile)
+
+        if not self.hardware_implementation_flag:
+            self.get_logger().info("Using simulated hardware implementation")
+
+            self.local_pos_sub = self.create_subscription(
+                VehicleLocalPosition,
+                '/fmu/out/vehicle_local_position',
+                self.vehicle_local_position_callback,
+                qos_profile)
+        else:
+            self.vehicle_odometry_subscriber = self.create_subscription(
+                VehicleOdometry,
+                '/fmu/out/vehicle_odometry',
+                self.vehicle_odometry_callback,
+                qos_profile)
         
         self.vehicle_command_publisher_ = self.create_publisher(VehicleCommand, "/fmu/in/vehicle_command", 10)
         self.publisher_offboard_mode = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', qos_profile)
         self.publisher_takeoff = self.create_publisher(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', qos_profile)
         timer_period = 0.05  # seconds
         self.timer = self.create_timer(timer_period, self.cmdloop_callback)
-        self.declare_parameter('altitude', 2.0)
         self.nav_state = VehicleStatus.NAVIGATION_STATE_MAX
         self.arming_state = VehicleStatus.ARMING_STATE_DISARMED
 
@@ -87,8 +113,7 @@ class OffboardTakeoff(Node):
         
         # Note: no parameter callbacks are used to prevent sudden inflight changes of radii and omega 
         # which would result in large discontinuities in setpoints
-        self.altitude = self.get_parameter('altitude').value
-        self.takeoff_speed = 10 # m/s
+        
         self.takeoff_duration = self.altitude/self.takeoff_speed #seconds
         self.takeoff_start_time = self.get_clock().now().nanoseconds
 
@@ -148,11 +173,21 @@ class OffboardTakeoff(Node):
 
     def vehicle_local_position_callback(self, msg):
 
-        self.heading = msg.heading
-        if msg.z <= -self.altitude:
-            print("Takeoff completed")
-            self.takeoff_completed = True
+        if not self.hardware_implementation_flag:
+            self.heading = msg.heading
+            if msg.z <= -0.9*self.altitude:
+                print("Takeoff completed")
+                self.takeoff_completed = True
 
+    def vehicle_odometry_callback(self, msg):
+        # This callback is not used in the takeoff node, but is required for the px4_tf node to function correctly
+        
+        if self.hardware_implementation_flag:
+            print("Altitude: ", msg.position[2])
+            if msg.position[2] <= -0.9*self.altitude:
+                print("Takeoff completed")
+                self.takeoff_completed = True
+            
     def cmdloop_callback(self):
         # Publish offboard control modes+
         offboard_msg = OffboardControlMode()

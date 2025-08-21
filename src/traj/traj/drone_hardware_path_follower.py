@@ -48,6 +48,10 @@ from px4_msgs.msg import VehicleCommand
 
 from px4_msgs.msg import VehicleAttitude
 from px4_msgs.msg import VehicleLocalPosition
+from px4_msgs.msg import VehicleOdometry
+
+from rclpy.signals import SignalHandlerOptions
+
 
 from geometry_msgs.msg import PoseStamped, Point
 
@@ -61,6 +65,16 @@ from scipy.spatial.transform import Rotation as R
 from nav_msgs.msg import Path
 from tf2_ros import TransformListener, Buffer
 from tf2_ros import TransformException, TransformStamped
+
+
+
+OPTITRACK_UP_LIM_X = 12.0
+OPTITRACK_UP_LIM_Y = 6.0
+OPTITRACK_UP_LIM_Z = -0.3
+OPTITRACK_DOWN_LIM_X = -1.0
+OPTITRACK_DOWN_LIM_Y = -6.0
+OPTITRACK_DOWN_LIM_Z = -2.0
+
 
 def homogeneous_transform_matrix_pose(pose: PoseStamped):
     """
@@ -161,6 +175,15 @@ class DronePathFollower(Node):
             self.vehicle_status_callback,
             qos_profile)
         
+        self.vehicle_odometry_subscriber = self.create_subscription(
+            VehicleOdometry,
+            '/fmu/out/vehicle_odometry',
+            self.vehicle_odometry_callback,
+            qos_profile)
+
+        self.current_position = []
+        self.current_orientation = []
+        
         self.vehicle_command_publisher_ = self.create_publisher(VehicleCommand, "/fmu/in/vehicle_command", 10)
         self.publisher_offboard_mode = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', qos_profile)
         self.publisher_trajectory = self.create_publisher(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', qos_profile)
@@ -176,7 +199,7 @@ class DronePathFollower(Node):
 
         self.index = 0
 
-        timer_period = 0.02  # seconds
+        timer_period = 0.1  # seconds
         self.timer = self.create_timer(timer_period, self.cmdloop_callback)
         self.dt = timer_period
         
@@ -186,8 +209,15 @@ class DronePathFollower(Node):
         self.switched_once_to_offboard = False
 
         self.se3_filter = SE3Filter(max_len=20)
-    
+
+
+    def vehicle_odometry_callback(self, msg):
+
+        self.current_position = [msg.position[0], msg.position[1], msg.position[2]]
+        self.current_orientation = [msg.q[0], msg.q[1], msg.q[2], msg.q[3]]
+        
     def tf_timer(self):
+        
 
         # We immediately check if we need to stop the drone
         try: 
@@ -197,7 +227,12 @@ class DronePathFollower(Node):
                 rclpy.time.Time())
         except TransformException as ex:
             self.get_logger().info(
-                f'Could not transform camera_slam to drone: {ex}')
+                f'Could not transform camera_color to drone: {ex}')
+            
+            self.get_logger().info('Shutting down node due to missing transform.')
+            sys.exit()
+            self.destroy_node()
+            rclpy.shutdown()
             return
         
         self.r_drone_to_camera_color = quaternion_matrix([   
@@ -213,10 +248,10 @@ class DronePathFollower(Node):
         
         self.T_drone_to_camera_color = homogeneous_transform_matrix_tf(self.drone_to_camera_color)
 
-        if (np.linalg.norm(self.t_drone_to_camera_color) > 1.0): 
-            self.set_hold_mode()
-            rclpy.shutdown()
+        if (np.linalg.norm(self.t_drone_to_camera_color) > 4.0): 
+            self.get_logger().error('DRIFT TOO LARGE, SHUTTING DOWN')
             sys.exit()
+            rclpy.shutdown()
 
 
         if not self.static_transform_set:
@@ -262,59 +297,6 @@ class DronePathFollower(Node):
 
 
         
-
-        try: 
-            self.drone_to_map = self.tf_buffer.lookup_transform(
-                "map",
-                "drone",
-                rclpy.time.Time())
-        except TransformException as ex:
-            self.get_logger().info(
-                f'Could not transform map to drone: {ex}')
-            return
-        
-        # We need first a new frame representing the drone in map but with optical orientation
-        self.T_drone_to_map = homogeneous_transform_matrix_tf(self.drone_to_map)
-
-        
-        """
-        # In theory we can directly take this from the realsense sdf model on the drone
-        self.T_drone_optical_to_map = np.eye(4)
-        self.T_drone_optical_to_map[0:3, 0:3] = self.T_map_to_slam_map[0:3, 0:3] @ self.T_drone_to_map[0:3, 0:3]
-        self.T_drone_optical_to_map[0:3, 3] = self.T_drone_to_map[0:3, 3]
-
-        # We made up a new frame and we can transform this into the slam map frame
-        # We need to compute the difference between the drone optical frame and the tracked camera optical color frame
-        self.T_drone_optical_to_slam_map = np.dot(self.T_map_to_slam_map, self.T_drone_optical_to_map) 
-        
-        """
-
-        try: 
-            self.drone_optical_to_slam_map = self.tf_buffer.lookup_transform(
-                "slam_map",
-                "x500_realsense/realsense_d435/base_link/realsense_d435",
-                rclpy.time.Time())
-        except TransformException as ex:
-            self.get_logger().info(
-                f'Could not transform slam_map to drone_optical_frame: {ex}')
-            return
-
-        self.T_drone_optical_to_slam_map = homogeneous_transform_matrix_tf(self.drone_optical_to_slam_map)
-
-
-        try: 
-            self.slam_map_to_camera_color_optical = self.tf_buffer.lookup_transform(
-                "camera_color_optical_frame",
-                "slam_map",
-                rclpy.time.Time())
-        except TransformException as ex:
-            self.get_logger().info(
-                f'Could not transform slam_map to camera_color_optical_frame: {ex}')
-            return
-        
-        self.T_slam_map_to_camera_color_optical = homogeneous_transform_matrix_tf(self.slam_map_to_camera_color_optical)
-        
-
         try: 
             self.drone_optical_to_camera_color_optical = self.tf_buffer.lookup_transform(
                 "camera_color_optical_frame",
@@ -329,9 +311,9 @@ class DronePathFollower(Node):
 
         # self.T_drone_optical_to_camera_color_optical = np.dot(self.T_slam_map_to_camera_color_optical, self.T_drone_optical_to_slam_map)
 
-        self.se3_filter.push(self.T_drone_optical_to_camera_color_optical)
+        # self.se3_filter.push(self.T_drone_optical_to_camera_color_optical)
 
-        self.filtered_T_drone_optical_to_camera_color_optical = self.se3_filter.get_smoothed()
+        # self.filtered_T_drone_optical_to_camera_color_optical = self.se3_filter.get_smoothed()
 
         
                                                 
@@ -373,6 +355,9 @@ class DronePathFollower(Node):
         self.nav_state = msg.nav_state
         self.arming_state = msg.arming_state
 
+        # print("////// nav_state: ", self.nav_state)
+        # print("//////\n")
+
         # If at any point we find ourselves to be in offboard mode, we set the flag to true
         if msg.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD:
             self.switched_once_to_offboard = True
@@ -391,6 +376,7 @@ class DronePathFollower(Node):
 
 
     def path_callback(self, msg):
+
         self.path = msg
         self.path_start_time = self.get_clock().now().nanoseconds
         self.index = 1
@@ -400,7 +386,7 @@ class DronePathFollower(Node):
 
         # We received a new path, so we need to publish the setpoints now
         self.publish_setpoints_flag = True
-        self.get_logger().info("Path Received")
+        self.get_logger().info("-----\nPath Received\n")
 
         """ We want to guarantee that the drone never enters offboard control mode unless we do it manually or on the first path received. """
 
@@ -409,6 +395,7 @@ class DronePathFollower(Node):
 
             # If we know we had never switched to offboard mode before, we set the offboard mode
             if self.switched_once_to_offboard == False:
+                print("     Switching to offboard mode for the first time\n")
                 self.set_offboard_mode()
                 # Now we know we have switched at least once to offboard mode
                 self.switched_once_to_offboard = True
@@ -420,10 +407,14 @@ class DronePathFollower(Node):
         offboard_msg.acceleration=False
         self.publisher_offboard_mode.publish(offboard_msg)
 
+        print("Publishing Offboard Message from Path callback-----\n")
+
     def cmdloop_callback(self):
 
         # Publish offboard control modes for the px4 to remain in offboard mode
-        if self.publish_setpoints_flag and self.switched_once_to_offboard:
+        if self.switched_once_to_offboard:
+
+            # print("+++++++++ Publishing Offboard Control Mode ++++++++\n")
 
             offboard_msg = OffboardControlMode()
             offboard_msg.timestamp = int(Clock().now().nanoseconds / 1000)
@@ -431,112 +422,148 @@ class DronePathFollower(Node):
             offboard_msg.velocity=False
             offboard_msg.acceleration=False
             self.publisher_offboard_mode.publish(offboard_msg)
-
             
-            # if (self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD and self.arming_state == VehicleStatus.ARMING_STATE_ARMED):
-            if self.arming_state == VehicleStatus.ARMING_STATE_ARMED and not self.nav_state == VehicleStatus.NAVIGATION_STATE_POSCTL:
+            # If there are no setpoints to publish, we republish the drone position
+            if self.publish_setpoints_flag == False: 
 
-                # 1- Check time elapsed since path start in seconds
-                elapsed_time = (self.get_clock().now().nanoseconds - self.path_start_time) / 1e9
+                # print("    No path: Publishing Drone Position")
 
-                # 2- Check if the segment index is valid
-                if self.index < len(self.path.poses)-1:
-                    
-                    # 3- Check if the time elapsed is greater than the time of the segment
-                    if elapsed_time > self.path.poses[self.index].header.stamp.sec + self.path.poses[self.index].header.stamp.nanosec / 1e9:
+                x_ned = self.current_position[0]
+                y_ned = self.current_position[1]
+                z_ned = self.current_position[2]
+
+                print("Current Position: ", x_ned, y_ned, z_ned)
+
+                trajectory_msg = TrajectorySetpoint()
+                trajectory_msg.position[0] = np.clip(x_ned, OPTITRACK_DOWN_LIM_X, OPTITRACK_UP_LIM_X)
+                trajectory_msg.position[1] = np.clip(y_ned, OPTITRACK_DOWN_LIM_Y, OPTITRACK_UP_LIM_Y)
+                trajectory_msg.position[2] = np.clip(z_ned, OPTITRACK_DOWN_LIM_Z, OPTITRACK_UP_LIM_Z)
+
+
+                trajectory_msg.yaw = 0.0
+                self.publisher_trajectory.publish(trajectory_msg)
+
+                return 
+
+ 
+            # If there are setpoints to be published, we publish those
+            if self.publish_setpoints_flag == True:
+
+                # print("    Path found: Entering Command Loop")
+                # if (self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD and self.arming_state == VehicleStatus.ARMING_STATE_ARMED):
+                if self.arming_state == VehicleStatus.ARMING_STATE_ARMED and not self.nav_state == VehicleStatus.NAVIGATION_STATE_POSCTL:
+                    # print("         Drone armed and in offboard mode, publishing trajectory setpoints\n")
+                    # 1- Check time elapsed since path start in seconds
+                    elapsed_time = (self.get_clock().now().nanoseconds - self.path_start_time) / 1e9
+
+                    # 2- Check if the segment index is valid
+                    if self.index < len(self.path.poses)-1:
                         
-                        # 4- Increment the index
-                        self.index += 1
+                        # 3- Check if the time elapsed is greater than the time of the segment
+                        if elapsed_time > self.path.poses[self.index].header.stamp.sec + self.path.poses[self.index].header.stamp.nanosec / 1e9:
+                            
+                            # 4- Increment the index
+                            self.index += 1
 
-                        if self.index == len(self.path.poses) -1:
-                            return
+                            if self.index == len(self.path.poses) -1:
+                                self.publish_setpoints_flag = False
+                                # print("                 Path Completed in nested if\n")
+                                return
+                            
                         
-                    
-                    T_setpoint_optical_to_slam_map = homogeneous_transform_matrix_pose(self.path.poses[self.index])
+                        T_setpoint_optical_to_slam_map = homogeneous_transform_matrix_pose(self.path.poses[self.index])
 
-                    # filtered_T_drone_optical_to_camera_color_optical = self.se3_filter.get_smoothed()
+                        # filtered_T_drone_optical_to_camera_color_optical = self.se3_filter.get_smoothed()
 
-                    T_drone_optical_setpoint_to_slam_map = np.dot(T_setpoint_optical_to_slam_map, self.T_drone_optical_to_camera_color_optical)
+                        T_drone_optical_setpoint_to_slam_map = np.dot(T_setpoint_optical_to_slam_map, self.T_drone_optical_to_camera_color_optical)
 
-                    # T_setpoint_optical_to_map = np.dot(self.T_slam_map_to_map, T_setpoint_optical_to_slam_map)
+                        # T_setpoint_optical_to_map = np.dot(self.T_slam_map_to_map, T_setpoint_optical_to_slam_map)
 
-                    # T_setpoint_cam_to_slam_map = self.camera_color_optical_to_camera_color @ T_setpoint_optical_to_slam_map
+                        # T_setpoint_cam_to_slam_map = self.camera_color_optical_to_camera_color @ T_setpoint_optical_to_slam_map
 
-                    # T_setpoint_cam_to_map = np.dot(self.T_slam_map_to_map, T_setpoint_cam_to_slam_map)
+                        # T_setpoint_cam_to_map = np.dot(self.T_slam_map_to_map, T_setpoint_cam_to_slam_map)
 
-                    # T_offset_setpoint_to_map = np.dot(T_setpoint_cam_to_map, self.T_drone_to_camera_color)
+                        # T_offset_setpoint_to_map = np.dot(T_setpoint_cam_to_map, self.T_drone_to_camera_color)
 
-                    # print(T_offset_setpoint_to_map)
+                        # print(T_offset_setpoint_to_map)
 
-                    # setpoint = self.path.poses[self.index]
+                        # setpoint = self.path.poses[self.index]
 
-                    # x = setpoint.pose.position.x
-                    # y = setpoint.pose.position.y
-                    # z = setpoint.pose.position.z 
-
-
-                    # r =  self.r_slam_map_to_map
-
-                    # pos_slam =  np.array([[x], [y], [z]])
+                        # x = setpoint.pose.position.x
+                        # y = setpoint.pose.position.y
+                        # z = setpoint.pose.position.z 
 
 
-                    # rotated_pos = np.dot(r[0:3, 0:3], pos_slam)
+                        # r =  self.r_slam_map_to_map
 
-                    # # rotated_pos = rotated_pos + self.t_drone_to_camera_color
-                    
-
-                    # R_i = quaternion_matrix([   
-                    #                          setpoint.pose.orientation.x,
-                    #                          setpoint.pose.orientation.y,
-                    #                          setpoint.pose.orientation.z,
-                    #                          setpoint.pose.orientation.w,          
-                    #                         ])
-                    
-                    R_i = T_drone_optical_setpoint_to_slam_map[0:3, 0:3]
-                    pos = T_drone_optical_setpoint_to_slam_map[0:3, 3]
-                    # R_i = np.dot( r , R_i )
-                    z_i = np.array(R_i[0:3, 2])
-
-                    # print("Z_i: ", z_i)
-
-                    # # x_i = np.array(T_offset_setpoint_to_map[0:3, 0])
-
-                    # TODO: There is a mistake here
-                    yaw_i = np.arctan2(z_i[0], z_i[2])
-                    # yaw_i = 0.0
-
-                    # # pos = T_offset_setpoint_to_map[0:3, 3]
-                    # pos = rotated_pos
-
-                    x, y, z = pos
-
-                    # print("Yaw: ", yaw_i)
+                        # pos_slam =  np.array([[x], [y], [z]])
 
 
-                    trajectory_msg = TrajectorySetpoint()
-                    trajectory_msg.position[0] = z
-                    trajectory_msg.position[1] = x
-                    trajectory_msg.position[2] = y
-                    trajectory_msg.yaw = yaw_i
+                        # rotated_pos = np.dot(r[0:3, 0:3], pos_slam)
 
-                    # trajectory_msg.position[0] = pos[0]
-                    # trajectory_msg.position[1] = -pos[1]
-                    # trajectory_msg.position[2] = -pos[2]
-                    # trajectory_msg.yaw = -yaw_i
+                        # # rotated_pos = rotated_pos + self.t_drone_to_camera_color
+                        
 
-                    self.publisher_trajectory.publish(trajectory_msg)
+                        # R_i = quaternion_matrix([   
+                        #                          setpoint.pose.orientation.x,
+                        #                          setpoint.pose.orientation.y,
+                        #                          setpoint.pose.orientation.z,
+                        #                          setpoint.pose.orientation.w,          
+                        #                         ])
+                        
+                        # R_i = T_drone_optical_setpoint_to_slam_map[0:3, 0:3]
+                        R_i = T_setpoint_optical_to_slam_map[0:3, 0:3]
+                        pos = T_drone_optical_setpoint_to_slam_map[0:3, 3]
+                        # R_i = np.dot( r , R_i )
+                        z_i = np.array(R_i[0:3, 2])
+
+                        # print("Z_i: ", z_i)
+
+                        # # x_i = np.array(T_offset_setpoint_to_map[0:3, 0])
+
+                        yaw_i = np.arctan2(z_i[0], z_i[2])
+                        # yaw_i = 0.0
+
+                        # # pos = T_offset_setpoint_to_map[0:3, 3]
+                        # pos = rotated_pos
+
+                        x_slam, y_slam, z_slam = pos
+
+                        x_ned = z_slam
+                        y_ned = x_slam
+                        z_ned = y_slam
+
+                        print("Setpoint: ", x_ned, y_ned, z_ned)
+
+                        # print("Yaw: ", yaw_i)
 
 
-                else:
-                    # 2B- Stop publishing setpoints
-                    self.publish_setpoints_flag = False
-                    self.index = 0
-                    self.get_logger().info("Path Completed")
+                        trajectory_msg = TrajectorySetpoint()
+                        trajectory_msg.position[0] = np.clip(x_ned, OPTITRACK_DOWN_LIM_X, OPTITRACK_UP_LIM_X)
+                        trajectory_msg.position[1] = np.clip(y_ned, OPTITRACK_DOWN_LIM_Y, OPTITRACK_UP_LIM_Y)
+                        trajectory_msg.position[2] = np.clip(z_ned, OPTITRACK_DOWN_LIM_Z, OPTITRACK_UP_LIM_Z)
+                        trajectory_msg.yaw = yaw_i
+
+                        # trajectory_msg.position[0] = pos[0]
+                        # trajectory_msg.position[1] = -pos[1]
+                        # trajectory_msg.position[2] = -pos[2]
+                        # trajectory_msg.yaw = -yaw_i
+
+                        self.publisher_trajectory.publish(trajectory_msg)
+
+                        # print("             Publishing Path trajectory Setpoint\n+++++++++\n")
+
+
+                    else:
+                        # 2B- Stop publishing setpoints
+                        self.publish_setpoints_flag = False
+                        self.index = 0
+                        # self.get_logger().info("    Path Completed\n+++++++++\n")
 
 
 
 def main(args=None):
-    rclpy.init(args=args)
+    rclpy.init(args=args, signal_handler_options=SignalHandlerOptions.NO)
 
     drone_path_follower = DronePathFollower()
 
