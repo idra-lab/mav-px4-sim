@@ -1,0 +1,9 @@
+shopt -s expand_aliases
+alias takeoff="ros2 run traj offboard_takeoff --ros-args -p hardware:=True -p altitude:=0.5 -p takeoff_speed:=0.5"
+alias land="ros2 run traj land_disarm"
+
+alias run_hardware="ros2 launch traj drone_hardware.launch.py"
+
+alias run_hardware_planner="ros2 launch traj drone_hardware_planner_suite.launch.py"
+
+alias record_experiment="ros2 launch traj experiment_recorder.launch.py"

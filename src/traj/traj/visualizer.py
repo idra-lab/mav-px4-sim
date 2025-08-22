@@ -42,6 +42,7 @@ from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy
 
 from px4_msgs.msg import VehicleAttitude
 from px4_msgs.msg import VehicleLocalPosition
+from px4_msgs.msg import VehicleOdometry
 from px4_msgs.msg import TrajectorySetpoint
 from geometry_msgs.msg import PoseStamped, Point
 from nav_msgs.msg import Path
@@ -78,6 +79,10 @@ class PX4Visualizer(Node):
             depth=1,
         )
 
+        self.declare_parameter("hardware", False)
+
+        self.hardware_implementation_flag = self.get_parameter("hardware").get_parameter_value().bool_value
+
         self.attitude_sub = self.create_subscription(
             VehicleAttitude,
             "/fmu/out/vehicle_attitude",
@@ -90,12 +95,22 @@ class PX4Visualizer(Node):
             self.vehicle_local_position_callback,
             qos_profile,
         )
+
+        self.vehicle_odometry_subscriber = self.create_subscription(
+                                                VehicleOdometry, 
+                                                '/fmu/out/vehicle_odometry', 
+                                                self.vehicle_odometry_callback, 
+                                                qos_profile)
+        
+
         self.setpoint_sub = self.create_subscription(
             TrajectorySetpoint,
             "/fmu/in/trajectory_setpoint",
             self.trajectory_setpoint_callback,
             qos_profile,
         )
+
+        
         
         self.vehicle_pose_pub = self.create_publisher(
             PoseStamped, "/px4_visualizer/vehicle_pose", 10
@@ -138,25 +153,59 @@ class PX4Visualizer(Node):
         self.vehicle_attitude[3] = -msg.q[3]
 
     def vehicle_local_position_callback(self, msg):
-        path_clearing_timeout = (
-            self.get_parameter("path_clearing_timeout")
-            .get_parameter_value()
-            .double_value
-        )
-        if path_clearing_timeout >= 0 and (
-            (Clock().now().nanoseconds / 1e9 - self.last_local_pos_update)
-            > path_clearing_timeout
-        ):
-            self.vehicle_path_msg.poses.clear()
-        self.last_local_pos_update = Clock().now().nanoseconds / 1e9
 
-        # TODO: handle NED->ENU transformation
-        self.vehicle_local_position[0] = msg.x
-        self.vehicle_local_position[1] = -msg.y
-        self.vehicle_local_position[2] = -msg.z
-        self.vehicle_local_velocity[0] = msg.vx
-        self.vehicle_local_velocity[1] = -msg.vy
-        self.vehicle_local_velocity[2] = -msg.vz
+        if not self.hardware_implementation_flag:
+            path_clearing_timeout = (
+                self.get_parameter("path_clearing_timeout")
+                .get_parameter_value()
+                .double_value
+            )
+            if path_clearing_timeout >= 0 and (
+                (Clock().now().nanoseconds / 1e9 - self.last_local_pos_update)
+                > path_clearing_timeout
+            ):
+                self.vehicle_path_msg.poses.clear()
+            self.last_local_pos_update = Clock().now().nanoseconds / 1e9
+
+        
+            # TODO: handle NED->ENU transformation
+            self.vehicle_local_position[0] = msg.x
+            self.vehicle_local_position[1] = -msg.y
+            self.vehicle_local_position[2] = -msg.z
+            self.vehicle_local_velocity[0] = msg.vx
+            self.vehicle_local_velocity[1] = -msg.vy
+            self.vehicle_local_velocity[2] = -msg.vz
+
+
+
+
+    def vehicle_odometry_callback(self, msg):
+
+        if self.hardware_implementation_flag:
+
+            path_clearing_timeout = (
+                self.get_parameter("path_clearing_timeout")
+                .get_parameter_value()
+                .double_value
+            )
+            if path_clearing_timeout >= 0 and (
+                (Clock().now().nanoseconds / 1e9 - self.last_local_pos_update)
+                > path_clearing_timeout
+            ):
+                self.vehicle_path_msg.poses.clear()
+            self.last_local_pos_update = Clock().now().nanoseconds / 1e9
+
+            
+
+            # TODO: handle NED->ENU transformation
+            self.vehicle_local_position[0] = msg.position[0]
+            self.vehicle_local_position[1] = -msg.position[1]
+            self.vehicle_local_position[2] = -msg.position[2]
+            self.vehicle_local_velocity[0] = msg.velocity[0]
+            self.vehicle_local_velocity[1] = -msg.velocity[1]
+            self.vehicle_local_velocity[2] = -msg.velocity[2]
+
+
 
     def trajectory_setpoint_callback(self, msg):
         self.setpoint_position[0] = msg.position[0]

@@ -4,12 +4,10 @@
 [submodule "src/micro_ros_setup"]
 	path = src/micro_ros_setup
 	url = https://github.com/micro-ROS/micro_ros_setup.git
-[submodule "ROS2_PX4_Offboard_Example"]
-	path = ROS2_PX4_Offboard_Example
-	url = git@github.com:ARK-Electronics/ROS2_PX4_Offboard_Example.git
 [submodule "src/optimizer/gauss_splat_plan"]
 	path = src/optimizer/gauss_splat_plan
 	url = git@github.com:idra-lab/gauss_splat_plan.git
+	branch = devel
 [submodule "src/realsense-ros"]
 	path = src/realsense-ros
 	url = git@github.com:IntelRealSense/realsense-ros.git
@@ -28,3 +26,4 @@
 [submodule "src/PUMA_ros"]
 	path = src/PUMA_ros
 	url = git@github.com:tamasso-parec/PUMA_ros.git
+	branch = dev

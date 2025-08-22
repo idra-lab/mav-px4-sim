@@ -47,6 +47,7 @@ from px4_msgs.msg import TrajectorySetpoint
 from px4_msgs.msg import VehicleStatus
 from px4_msgs.msg import VehicleCommand
 from px4_msgs.msg import VehicleLocalPosition
+from px4_msgs.msg import VehicleOdometry
 
 
 class OffboardTakeoff(Node):
@@ -60,6 +61,22 @@ class OffboardTakeoff(Node):
             depth=1
         )
 
+        self.declare_parameter('altitude', 2.0)
+        self.declare_parameter('takeoff_speed', 0.5)
+        self.declare_parameter('hardware', False)
+
+        
+        self.altitude = self.get_parameter('altitude').value
+        self.takeoff_speed = self.get_parameter('takeoff_speed').value # m/s
+        self.hardware_implementation_flag = self.get_parameter("hardware").get_parameter_value().bool_value
+
+        print("Altitude: ", self.altitude)
+        print("Takeoff Speed: ", self.takeoff_speed)
+        self.get_logger().info("Hardware implementation flag: " + str(self.hardware_implementation_flag))
+        
+        
+        
+        
         self.status_sub = self.create_subscription(
             VehicleStatus,
             '/fmu/out/vehicle_status',
@@ -67,28 +84,60 @@ class OffboardTakeoff(Node):
             qos_profile)
         
         #Create subscriptions
-        self.local_pos_sub = self.create_subscription(
-            VehicleLocalPosition,
-            '/fmu/out/vehicle_local_position',
-            self.vehicle_local_position_callback,
-            qos_profile)
+
+        if not self.hardware_implementation_flag:
+            self.get_logger().info("Using simulated hardware implementation")
+
+            self.local_pos_sub = self.create_subscription(
+                VehicleLocalPosition,
+                '/fmu/out/vehicle_local_position',
+                self.vehicle_local_position_callback,
+                qos_profile)
+        else:
+            self.vehicle_odometry_subscriber = self.create_subscription(
+                VehicleOdometry,
+                '/fmu/out/vehicle_odometry',
+                self.vehicle_odometry_callback,
+                qos_profile)
         
         self.vehicle_command_publisher_ = self.create_publisher(VehicleCommand, "/fmu/in/vehicle_command", 10)
         self.publisher_offboard_mode = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', qos_profile)
         self.publisher_takeoff = self.create_publisher(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', qos_profile)
         timer_period = 0.05  # seconds
         self.timer = self.create_timer(timer_period, self.cmdloop_callback)
-        self.declare_parameter('altitude', 2.0)
         self.nav_state = VehicleStatus.NAVIGATION_STATE_MAX
         self.arming_state = VehicleStatus.ARMING_STATE_DISARMED
+
+        self.sent_arm_msg= False
+        self.sent_offboard_msg = False
+        
         # Note: no parameter callbacks are used to prevent sudden inflight changes of radii and omega 
         # which would result in large discontinuities in setpoints
-        self.altitude = self.get_parameter('altitude').value
+        
+        self.takeoff_duration = self.altitude/self.takeoff_speed #seconds
+        self.takeoff_start_time = self.get_clock().now().nanoseconds
 
         self.takeoff_completed = False
 
         self.heading = 0.0
 
+    def arm(self):
+        self.publish_vehicle_command(VehicleCommand.VEHICLE_CMD_COMPONENT_ARM_DISARM, 1.0)
+        self.get_logger().info("Arm command sent")
+
+    def publish_vehicle_command(self, command, param1=0.0, param2=0.0, param7=0.0):
+        msg = VehicleCommand()
+        msg.param1 = param1
+        msg.param2 = param2
+        msg.param7 = param7    # altitude value in takeoff command
+        msg.command = command  # command ID
+        msg.target_system = 1  # system which should execute the command
+        msg.target_component = 1  # component which should execute the command, 0 for all components
+        msg.source_system = 1  # system sending the command
+        msg.source_component = 1  # component sending the command
+        msg.from_external = True
+        msg.timestamp = int(Clock().now().nanoseconds / 1000) # time in microseconds
+        self.vehicle_command_publisher_.publish(msg)
 
 
     def set_offboard_mode(self):
@@ -112,19 +161,35 @@ class OffboardTakeoff(Node):
         self.nav_state = msg.nav_state
         self.arming_state = msg.arming_state
 
+        if self.arming_state != VehicleStatus.ARMING_STATE_ARMED and not self.sent_arm_msg:
+            self.arm()
+            self.sent_arm_msg = True
+
         if msg.nav_state == VehicleStatus.NAVIGATION_STATE_AUTO_LOITER or msg.nav_state == VehicleStatus.NAVIGATION_STATE_POSCTL:
-            print("NAV_STATE: OFFBOARD")
-            self.set_offboard_mode()
+            if not self.sent_offboard_msg:
+                print("NAV_STATE: OFFBOARD")
+                self.set_offboard_mode()
+                self.sent_offboard_msg = True
 
     def vehicle_local_position_callback(self, msg):
 
-        self.heading = msg.heading
-        if msg.z <= -self.altitude:
-            print("Takeoff completed")
-            self.takeoff_completed = True
+        if not self.hardware_implementation_flag:
+            self.heading = msg.heading
+            if msg.z <= -0.9*self.altitude:
+                print("Takeoff completed")
+                self.takeoff_completed = True
 
+    def vehicle_odometry_callback(self, msg):
+        # This callback is not used in the takeoff node, but is required for the px4_tf node to function correctly
+        
+        if self.hardware_implementation_flag:
+            print("Altitude: ", msg.position[2])
+            if msg.position[2] <= -0.9*self.altitude:
+                print("Takeoff completed")
+                self.takeoff_completed = True
+            
     def cmdloop_callback(self):
-        # Publish offboard control modes
+        # Publish offboard control modes+
         offboard_msg = OffboardControlMode()
         offboard_msg.timestamp = int(Clock().now().nanoseconds / 1000)
         offboard_msg.position=True
@@ -134,16 +199,26 @@ class OffboardTakeoff(Node):
 
         if not self.takeoff_completed:
             if (self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD and self.arming_state == VehicleStatus.ARMING_STATE_ARMED):
+                delta_t = (self.get_clock().now().nanoseconds - self.takeoff_start_time) / 1e9
+
+                if delta_t > self.takeoff_duration:
+                    delta_t = self.takeoff_duration
 
                 trajectory_msg = TrajectorySetpoint()
                 trajectory_msg.position[0] = 0
                 trajectory_msg.position[1] = 0
-                trajectory_msg.position[2] = -self.altitude
+                trajectory_msg.position[2] = - (self.altitude - self.takeoff_speed * (self.takeoff_duration-delta_t) )
+                trajectory_msg.velocity[0] = 0
+                trajectory_msg.velocity[1] = 0
+                trajectory_msg.velocity[2] = 0.0
                 trajectory_msg.yaw = self.heading
+                
+
                 self.publisher_takeoff.publish(trajectory_msg)
             else: 
                 print("Waiting for vehicle to be armed and in offboard mode")
                 self.takeoff_completed = False
+                self.takeoff_start_time = self.get_clock().now().nanoseconds
         else:
             print("Takeoff completed, stopping node")
             sys.exit()

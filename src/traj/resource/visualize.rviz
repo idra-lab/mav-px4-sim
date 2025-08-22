@@ -78,8 +78,20 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /px4_visualizer/vehicle_velocity
       Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Obstacles Marker
+      Namespaces:
+        arrow: false
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /obstacles_marker
+      Value: true
     - Alpha: 1
-      Buffer Length: 1
+      Buffer Length: 10000
       Class: rviz_default_plugins/Path
       Color: 25; 255; 0
       Enabled: true
@@ -105,9 +117,9 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /px4_visualizer/vehicle_path
       Value: true
-    - Alpha: 1
-      Buffer Length: 1
-      Class: rviz_default_plugins/Path
+    - Class: rviz_default_plugins/Path
+      Alpha: 1
+      Buffer Length: 1000
       Color: 25; 0; 255
       Enabled: true
       Head Diameter: 0.30000001192092896
@@ -132,6 +144,103 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /px4_visualizer/setpoint_path
       Value: true
+    - Class: rviz_default_plugins/Path
+      Alpha: 1
+      Buffer Length: 1
+      Color: 97; 53; 131
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.029999999329447746
+      Name: Path
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: Axes
+      Length: 0.3
+      Radius: 0.03
+      Topic:
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /drone_path
+      Value: true
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: true
+        # base_link:
+        #   Value: true
+        # camera_accel_frame:
+        #   Value: true
+        # camera_accel_optical_frame:
+        #   Value: true
+        # camera_bottom_screw_frame:
+        #   Value: true
+        # camera_color_frame:
+        #   Value: true
+        # camera_color_optical_frame:
+        #   Value: true
+        # camera_depth_frame:
+        #   Value: true
+        # camera_depth_optical_frame:
+        #   Value: true
+        # camera_gyro_frame:
+        #   Value: true
+        # camera_gyro_optical_frame:
+        #   Value: true
+        # camera_imu_optical_frame:
+        #   Value: true
+        # camera_infra1_frame:
+        #   Value: true
+        # camera_infra1_optical_frame:
+        #   Value: true
+        # camera_infra2_frame:
+        #   Value: true
+        # camera_infra2_optical_frame:
+        #   Value: true
+        # camera_link:
+        #   Value: true
+        # camera_usb_plug_link:
+        #   Value: true
+      Marker Scale: 1
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: false
+      # Tree:
+      #   base_link:
+      #     camera_bottom_screw_frame:
+      #       camera_link:
+      #         camera_accel_frame:
+      #           camera_accel_optical_frame:
+      #             {}
+      #         camera_color_frame:
+      #           camera_color_optical_frame:
+      #             {}
+      #         camera_depth_frame:
+      #           camera_depth_optical_frame:
+      #             {}
+      #         camera_gyro_frame:
+      #           camera_gyro_optical_frame:
+      #             camera_imu_optical_frame:
+      #               {}
+      #         camera_infra1_frame:
+      #           camera_infra1_optical_frame:
+      #             {}
+      #         camera_infra2_frame:
+      #           camera_infra2_optical_frame:
+      #             {}
+      #         camera_usb_plug_link:
+      #           {}
+      Update Interval: 0
+      Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
       Name: Camera Image
@@ -142,6 +251,31 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /x500_realsense/image_raw
       Value: true
+    - Class: octomap_rviz_plugins/OccupancyGrid
+      Enabled: true
+      Name: Uncertain Octomap
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /octomap_full
+      Voxel Rendering: Occupied Voxels
+      Voxel Coloring: Z-Axis
+      Voxel Alpha: 1.0
+      Max. Octree Depth: 16
+      Max. Height Display: 70
+      Min. Height Display: -4
+      Value: true
+    - Class: UncertainPointCloud
+      Enabled: false
+      Name: UncertainPointCloud
+      Topic: 
+        Depth: 1
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /slam/uncertain_point_cloud
     - Class: rviz_default_plugins/Image
       Enabled: true
       Name: Depth Image
@@ -156,10 +290,13 @@ Visualization Manager:
       Max Value: 100
       Value: true
     - Class: rviz_default_plugins/PointCloud2
-      Enabled: true
+      Enabled: false
       Name: PointCloud
-      Color Transformer: "FlatColor"
-      Color: 0; 0; 255
+      Style: Spheres
+      Alpha: 0.5
+      Color Transformer: "AxisColor"
+      Axis: X
+      Decay Time: 10
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -170,7 +307,7 @@ Visualization Manager:
       Value: true
   Enabled: true
   Global Options:
-    Background Color: 255; 255; 255
+    Background Color: 0; 0; 0
     Fixed Frame: map
     Frame Rate: 30
   Name: root
@@ -227,7 +364,7 @@ Visualization Manager:
       Name: Current View
       Near Clip Distance: 0.009999999776482582
       Pitch: 0.795397937297821
-      Target Frame: <Fixed Frame>
+      Target Frame: drone
       Value: Orbit (rviz)
       Yaw: 0.6553981304168701
     Saved: ~
