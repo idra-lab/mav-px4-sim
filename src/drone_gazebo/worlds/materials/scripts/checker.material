@@ -1,0 +1,13 @@
+material checker/Squares
+{
+  technique
+  {
+    pass
+    {
+      texture_unit
+      {
+        texture worlds/materials/textures/checker.png
+      }
+    }
+  }
+}
