@@ -40,8 +40,40 @@ def generate_launch_description():
 		description='Initial pose quaternion w'
 	)
 
-	
 	add_all_actions(ld, [drone_qx_arg, drone_qy_arg, drone_qz_arg, drone_qw_arg])
+
+	slam_map_qx = LaunchConfiguration('qx')
+	slam_map_qy = LaunchConfiguration('qy')
+	slam_map_qz = LaunchConfiguration('qz')
+	slam_map_qw = LaunchConfiguration('qw')
+
+	slam_map_qx_arg = DeclareLaunchArgument(
+		'qx',
+		default_value='0.5',
+		description='Initial pose quaternion x'
+	)
+	slam_map_qy_arg = DeclareLaunchArgument(
+		'qy',
+		default_value='-0.5',
+		description='Initial pose quaternion y'
+	)
+	slam_map_qz_arg = DeclareLaunchArgument(
+		'qz',
+		default_value='-0.5',
+		description='Initial pose quaternion z'
+	)
+	slam_map_qw_arg = DeclareLaunchArgument(
+		'qw',
+		default_value='-0.5',
+		description='Initial pose quaternion w'
+	)
+
+	add_all_actions(ld, [slam_map_qx_arg, slam_map_qy_arg, slam_map_qz_arg, slam_map_qw_arg])
+	
+	
+
+
+
 
 	
 	slam_map_quat = [-0.5, 0.5, -0.5, -0.5]
@@ -85,7 +117,7 @@ def generate_launch_description():
 		name='map_frame_publisher',
 		arguments=[
 			'0', '0', '0',                # translation x y z
-            str(map_to_slam[0]), str(map_to_slam[1]), str(map_to_slam[2]), str(map_to_slam[3]),   # rotation in RPY (rad): -90°, 0°, -90°
+            slam_map_qw, slam_map_qx, slam_map_qy, slam_map_qz,   # rotation in RPY (rad): -90°, 0°, -90°
             # '-0.5', '0.5', '-0.5', '-0.5',   # rotation in RPY (rad): -90°, 0°, -90°
             # '1, 0, 0, 0',   # rotation in RPY (rad): -90°, 0°, -90°
 			'initial_pose_map',
