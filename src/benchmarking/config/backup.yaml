@@ -1,6 +1,6 @@
 ompl_planner: 
   global_goal: 
-    position: [-8.0, -3.0, 10.0]
+    position: [-8.0, -2.0, 10.0]
     orientation: [0, 0.7071068, 0, 0.7071068]
   global_box: 
     x_bound: [-10.0, 10.0]
@@ -8,9 +8,9 @@ ompl_planner:
     z_bound: [-10.0, 20.0]
   robot_size: 0.5
   solve_time: 1.0
-  max_iterations: 10000
+  max_iterations: 1000
   max_velocity: 2.0
-  goal_tolerance: 1.0
+  goal_tolerance: 0.2
 
 convex_decomposer:
   local_box:
@@ -23,7 +23,7 @@ octomap:
   fov_distance: 10.0
   vertical_fov_angle: 0.78
   horizontal_fov_angle: 0.8
-  num_view_directions: 10
+  num_view_directions: 20
   sigma_level: 6.25
   chi2_treshold: -1.0
   ground_filter_height: 1.0
@@ -41,28 +41,28 @@ octomap:
 
 
 smoother:
-  mean_velocity: 0.3
-  num_waypoints_per_segment: 10
-  horizon: 12000.0
+  mean_velocity: 0.2
+  num_waypoints_per_segment: 5
+  horizon: 7000.0
   constraints:
     # POSITION: 
     #   lower_bound: [-20.0, -6, -10.0]
     #   upper_bound: [20.0, -2, 110.0]
-    ATTITUDE:
-      lower_bound: [-1.6, -1.6, -1.6]
-      upper_bound: [1.6, 1.6, 1.6]
-    LINEAR_VELOCITY:
-      lower_bound: [-1.0, -1.0, -1.0]
-      upper_bound: [1.0, 1.0, 1.0]
-    ANGULAR_VELOCITY:
-      lower_bound: [-0.2, -0.2, -0.2]
-      upper_bound: [0.2, 0.2, 0.2]
-    LINEAR_ACCELERATION:
-      lower_bound: [-5.0, -5.0, -5.0]
-      upper_bound: [5.0, 5.0, 5.0]
-    ANGULAR_ACCELERATION:
-      lower_bound: [-0.5, -0.5, -0.5]
-      upper_bound: [0.5, 0.5, 0.5]
+    # ATTITUDE:
+    #   lower_bound: [-1.6, -1.0, -1.6]
+    #   upper_bound: [1.6, 1.0, 1.6]
+    # LINEAR_VELOCITY:
+    #   lower_bound: [-2.0, -2.0, -2.0]
+    #   upper_bound: [2.0, 2.0, 2.0]
+    # ANGULAR_VELOCITY:
+    #   lower_bound: [-0.2, -0.2, -0.2]
+    #   upper_bound: [0.2, 0.2, 0.2]
+    # LINEAR_ACCELERATION:
+    #   lower_bound: [-0.5, -0.5, -0.5]
+    #   upper_bound: [0.5, 0.5, 0.5]
+    # ANGULAR_ACCELERATION:
+    #   lower_bound: [-0.5, -0.5, -0.5]
+    #   upper_bound: [0.5, 0.5, 0.5]
   cameras:
     intrinsic:
       focal_length: [1000.0, 1000.0]
@@ -72,7 +72,7 @@ smoother:
       rotation_body_to_camera: [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
       translation_vector: [0.0, 0.0, 0.0]
   optimization:
-    max_iterations: 3
+    max_iterations: 1
     regularization_coefficient: 1.0
     tolerance:
       cost: 1e-3
