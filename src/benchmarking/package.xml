@@ -11,6 +11,34 @@
   <buildtool_depend>ament_cmake_python</buildtool_depend>
 
 
+  <depend>rclcpp</depend>
+  <depend>uncertain_pointcloud_msgs</depend>
+  <depend>gauss_splat</depend>
+  <depend>pcl_ros</depend>
+  <depend>octomap</depend>
+
+  <depend>geometry_msgs</depend>
+  <depend>libpcl-all-dev</depend>
+  <depend>message_filters</depend>
+  <depend>nav2_util</depend>
+  <depend>nav2_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>octomap_msgs</depend>
+  <!-- <depend>octomap_ros</depend> -->
+  <depend>pcl_conversions</depend>
+  <depend>rclcpp_components</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_eigen</depend>
+  <depend>tf2_geometry_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>visualization_msgs</depend>
+  <depend>uncertain_octomap</depend>
+  <depend>uncertain_planner</depend>
+
+  
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 

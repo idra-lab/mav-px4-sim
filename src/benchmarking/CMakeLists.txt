@@ -31,12 +31,13 @@ find_package(std_srvs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(octomap_msgs REQUIRED)
 find_package(uncertain_octomap REQUIRED)
+find_package(uncertain_planner REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 
 
 
 set(HEADER_FILES
-  include/${PROJECT_NAME}/benchmarking.hpp
+  # include/${PROJECT_NAME}/benchmarking.hpp
 )
 
 set(SOURCE_FILES
@@ -53,6 +54,7 @@ include_directories(include)
 link_directories(
   include
 )
+
 
 add_executable(benchmarking_node ${HEADER_FILES} ${SOURCE_FILES})
 target_include_directories(benchmarking_node PUBLIC
@@ -105,6 +107,70 @@ ament_target_dependencies(unseen_active_perception_node
   octomap_msgs
   uncertain_octomap
 )
+
+
+#####################################################################
+#####################################################################
+#####################################################################
+# FULL SMOOTHER 
+#####################################################################
+#####################################################################
+#####################################################################
+
+
+
+set(APACE_HEADER_FILES
+  include/${PROJECT_NAME}/apace/full_smoother.hpp
+  include/${PROJECT_NAME}/apace/full_smoother_benchmarking.hpp
+)
+
+set(APACE_SOURCE_FILES
+  src/apace/full_smoother.cpp
+  src/apace/full_smoother_benchmarking.cpp
+  src/apace/full_smoother_benchmarking_node.cpp
+
+)
+
+
+include_directories(include/apace)
+
+
+link_directories(
+  include/apace
+)
+
+
+add_executable(full_smoother_benchmarking_node ${APACE_HEADER_FILES} ${APACE_SOURCE_FILES})
+target_include_directories(full_smoother_benchmarking_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(full_smoother_benchmarking_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+
+install(TARGETS full_smoother_benchmarking_node
+  DESTINATION lib/${PROJECT_NAME})
+
+
+
+ament_target_dependencies(full_smoother_benchmarking_node
+  rclcpp
+  OpenMP
+  uncertain_pointcloud_msgs
+  pcl_ros
+  gauss_splat
+  nav_msgs
+  std_srvs
+  ompl
+  fcl
+  visualization_msgs
+  octomap_msgs
+  uncertain_octomap
+  uncertain_planner
+)
+
+#####################################################################
+#####################################################################
+#####################################################################
+
 
 
 
