@@ -654,30 +654,7 @@ bool FullSmoother::plan(void)
 		std::cout << "Initial path found with " << pth->getStateCount() << " states\n";
 		pth->printAsMatrix(std::cout);
 
-
-		// TODO: here add the cutting of the path on the sphere
-
-		og::PathGeometric* new_path = new og::PathGeometric(si);
-		cutPathToFovSphere(pth, current_position_, map->getFovDistance(), new_path);
-
-		
-		path = std::shared_ptr<ompl::geometric::PathGeometric>(new_path);
-		std::cout << "Truncated path found with " << new_path->getStateCount() << " states\n";
-
-		if (new_path->getStateCount() < 2)
-		{
-			std::cout << "Path too short after truncation\n";
-			return false;
-		}
-		pth = new_path;
-		pth->printAsMatrix(std::cout);
-
-		 
 		auto octo_path = vec3ToOctomap(path);
-
-		
-
-		// std::cout << "Path Size: " << octo_path.size() << std::endl;
 
 		std::vector<std::vector<uncertainPointXYZ>> subMaps;
 
@@ -693,10 +670,7 @@ bool FullSmoother::plan(void)
 		polytopesLog_ = freeSpaces;
 		
         //Path smoothing using bspline
-		og::FullSmoother* pathBSpline = new og::FullSmoother(si);
-
-
-		// this->configSmoother(pathBSpline);
+		PathSmoother* pathBSpline = new PathSmoother(si);
 
 		if (plannerConfig_!= nullptr)
 		{
@@ -717,8 +691,9 @@ bool FullSmoother::plan(void)
 
 		path_times = pathBSpline->getPathTimes();
 
-		replan_flag = false;
+		splines_ = pathBSpline->getSplines();
 
+		replan_flag = false;
 
 		return true;
 
@@ -755,12 +730,12 @@ bool FullSmoother::isStateValid(const ob::State *state)
 	}
 
 
-	if( !isCollisionFree(state) )// Check if the position is in a free voxel
+	if(!isCollisionFree(state) )// Check if the position is in a free voxel
 	{
 		return false;
 	}
 
-	if ( !seesAtLeastOneOccupied(state) ) // Check if the camera sees at least one occupied voxel
+	if (!seesAtLeastOneOccupied(state) ) // Check if the camera sees at least one occupied voxel
 	{
 		return false;
 	}

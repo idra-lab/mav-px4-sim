@@ -37,6 +37,7 @@
   <depend>visualization_msgs</depend>
   <depend>uncertain_octomap</depend>
   <depend>uncertain_planner</depend>
+  <depend>trajectory_msgs</depend>
 
   
   <test_depend>ament_lint_auto</test_depend>

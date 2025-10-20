@@ -32,6 +32,7 @@ find_package(visualization_msgs REQUIRED)
 find_package(octomap_msgs REQUIRED)
 find_package(uncertain_octomap REQUIRED)
 find_package(uncertain_planner REQUIRED)
+find_package(trajectory_msgs REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 
 
@@ -120,11 +121,14 @@ ament_target_dependencies(unseen_active_perception_node
 
 
 set(APACE_HEADER_FILES
+  include/${PROJECT_NAME}/apace/path_smoother.hpp
   include/${PROJECT_NAME}/apace/full_smoother.hpp
   include/${PROJECT_NAME}/apace/full_smoother_benchmarking.hpp
+
 )
 
 set(APACE_SOURCE_FILES
+src/apace/path_smoother.cpp
   src/apace/full_smoother.cpp
   src/apace/full_smoother_benchmarking.cpp
   src/apace/full_smoother_benchmarking_node.cpp
@@ -165,6 +169,7 @@ ament_target_dependencies(full_smoother_benchmarking_node
   octomap_msgs
   uncertain_octomap
   uncertain_planner
+  trajectory_msgs
 )
 
 #####################################################################

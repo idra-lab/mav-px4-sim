@@ -1,10 +1,9 @@
 #ifndef BENCHMARKING_APACE_FULL_SMOOTHER_HPP
 #define BENCHMARKING_APACE_FULL_SMOOTHER_HPP
 
-// Add declarations for benchmarking::apace::FullSmoother here.
 
 #include "planner_config.hpp"
-#include "fullSmoother.hpp"
+#include "path_smoother.hpp"
 
 #include "fullUncertainOctomap.hpp"
 
@@ -52,6 +51,8 @@ public:
 
     typedef ob::SE3StateSpace::StateType SE3State_;
 	typedef ob::ConstrainedStateSpace::StateType ConstrState_;
+
+	typedef PathSmoother::splinePair splinePair;
 
 
     FullSmoother();
@@ -164,6 +165,9 @@ public:
 
 	void initializeCost();
 
+	std::vector<splinePair> getSplines() const {return splines_;};
+	
+
 private:
   // Add private member variables and methods here.
 
@@ -186,6 +190,8 @@ private:
 
 	og::PathGeometric* path_smooth = NULL;
 	og::PathGeometric* fallback_path = NULL;
+
+	std::vector<PathSmoother::splinePair> splines_;
 
 	std::vector<float> path_times;
 
@@ -239,7 +245,7 @@ private:
 	/* 
 		The class enters the smoother and accesses the underlying optimizer, using class methods to define constraints and optimization parameters
 	*/
-	void configSmoother(og::FullSmoother* pathBSpline);
+	void configSmoother(PathSmoother* pathBSpline);
 
 	/* 
 		LOGGING

@@ -1,0 +1,87 @@
+env:
+  initial_pose: [-20, 0.0, 10.01, 0.0, 0.0, 0.0]
+  slam_map_quat: [-0.5, 0.5, -0.5, -0.5]
+  takeoff_speed: 0.5
+  takeoff_height: 2.0
+  
+
+
+ompl_planner: 
+  global_goal: 
+    position: [-8.0, -3.0, 10.0]
+    orientation: [0, 0.7071068, 0, 0.7071068]
+  global_box: 
+    x_bound: [-10.0, 10.0]
+    y_bound: [-4.5,  -1.0]
+    z_bound: [-10.0, 20.0]
+  robot_size: 0.5
+  solve_time: 1.0
+  max_iterations: 10000
+  max_velocity: 2.0
+  goal_tolerance: 1.0
+
+convex_decomposer:
+  local_box:
+    x_bound: [-3.0, 3.0]
+    y_bound: [-3.0, 3.0]
+    z_bound: [-3.0, 3.0]
+
+octomap:
+  resolution: 1.0
+  fov_distance: 10.0
+  vertical_fov_angle: 0.78
+  horizontal_fov_angle: 0.8
+  num_view_directions: 10
+  sigma_level: 6.25
+  chi2_treshold: -1.0
+  ground_filter_height: 1.0
+  probability_hit: 0.51
+  probability_miss: 0.01
+  threshold_minimum: 0.12
+  threshold_maximum: 0.97
+  occupancy_threshold: 0.6
+  maximum_range: 10.0
+  minimum_range: -1.0
+  compress_map: false
+  cluster_distance: 1.0
+  cluster_min: 1200
+  cluster_max: 25000
+
+
+smoother:
+  mean_velocity: 0.3
+  num_waypoints_per_segment: 10
+  horizon: 12000.0
+  constraints:
+    # POSITION: 
+    #   lower_bound: [-20.0, -6, -10.0]
+    #   upper_bound: [20.0, -2, 110.0]
+    ATTITUDE:
+      lower_bound: [-1.6, -1.6, -1.6]
+      upper_bound: [1.6, 1.6, 1.6]
+    LINEAR_VELOCITY:
+      lower_bound: [-1.0, -1.0, -1.0]
+      upper_bound: [1.0, 1.0, 1.0]
+    ANGULAR_VELOCITY:
+      lower_bound: [-0.2, -0.2, -0.2]
+      upper_bound: [0.2, 0.2, 0.2]
+    LINEAR_ACCELERATION:
+      lower_bound: [-5.0, -5.0, -5.0]
+      upper_bound: [5.0, 5.0, 5.0]
+    ANGULAR_ACCELERATION:
+      lower_bound: [-0.5, -0.5, -0.5]
+      upper_bound: [0.5, 0.5, 0.5]
+  cameras:
+    intrinsic:
+      focal_length: [1000.0, 1000.0]
+      principal_point: [640.0, 480.0]
+      distortion_coefficients: [0.1, 0.01, 0.001, 0.0, 0.0]
+    extrinsic:
+      rotation_body_to_camera: [0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0]
+      translation_vector: [0.0, 0.0, 0.0]
+  optimization:
+    max_iterations: 3
+    regularization_coefficient: 1.0
+    tolerance:
+      cost: 1e-3
+      constraints: 1e-3
