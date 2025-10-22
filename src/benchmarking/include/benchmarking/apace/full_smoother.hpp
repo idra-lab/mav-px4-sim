@@ -264,6 +264,8 @@ class RayCastMotionValidator : public ompl::base::MotionValidator {
 
 	std::shared_ptr<FullUncertainOctomap> map;
 
+	bool seesOneOccupied(const ob::State *s) const;
+
 	RayCastMotionValidator(const ompl::base::SpaceInformationPtr &si) : MotionValidator(si) {}
 	RayCastMotionValidator(const ompl::base::SpaceInformationPtr &si, std::shared_ptr<FullUncertainOctomap> m_map) : MotionValidator(si), map(m_map) {}
 

@@ -1,13 +1,17 @@
 from  nav_manager.launcher_lib import *
 
+
+
 def generate_launch_description():
 
 	ld = LaunchDescription()
 
+	# op_fun_read_yaml = OpaqueFunction(function=read_yaml_config)
+
+	# ld.add_action(op_fun_read_yaml)
+	
 	airframe = LaunchConfiguration("airframe")
 	gz_world_file = LaunchConfiguration("gz_world_file")
-
-
 
 	airframe_launch_arg = DeclareLaunchArgument(
 		'airframe', default_value='gz_x500_realsense'
@@ -36,29 +40,14 @@ def generate_launch_description():
 	set_resource_path = SetEnvironmentVariable(name='GZ_SIM_RESOURCE_PATH', value=[EnvironmentVariable('GZ_SIM_RESOURCE_PATH'), ':/usr/share/gz/gz-sim8/'])
 
 	
-
-
 	set_plugin_path = SetEnvironmentVariable(name='GZ_SIM_SYSTEM_PLUGIN_PATH',value=[EnvironmentVariable('GZ_SIM_SYSTEM_PLUGIN_PATH'), ':/opt/ros/humble/lib'])
 
 
-	pose_str = '0 0 0.01 0 0 0.0'
-
-	drone_position = [float(x) for x in pose_str.split()[:3]]
-	drone_angles = [float(x) for x in pose_str.split()[3:]]
-	drone_angles[2] -= 1.57  # Adjust yaw to match the expected orientation
-
-	drone_quat = quaternion_from_euler(
-
-		drone_angles[0],
-		drone_angles[1],
-		drone_angles[2]
-	)
-
-	
+	print("Drone Pose from config: ", drone_config_instance.pose_str)
 	set_pose = SetEnvironmentVariable(
 		name='PX4_GZ_MODEL_POSE',
 		# value='0 0 0.01 0 0 1.57'
-		value= pose_str,
+		value= drone_config_instance.pose_str,
 		# value='0 0 0 0 0 0'
 	)
 
@@ -99,9 +88,6 @@ def generate_launch_description():
 	add_all_actions(ld, env_vars_set)
 
 	
-
-	
-
 	pkg_ros_gz_sim = get_package_share_directory('ros_gz_sim')
 
 	pkg_project_description = get_package_share_directory('drone_description')

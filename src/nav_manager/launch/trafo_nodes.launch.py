@@ -71,13 +71,6 @@ def generate_launch_description():
 	add_all_actions(ld, [slam_map_qx_arg, slam_map_qy_arg, slam_map_qz_arg, slam_map_qw_arg])
 	
 	
-
-
-
-
-	
-	slam_map_quat = [-0.5, 0.5, -0.5, -0.5]
-
 	
 
 	camera_optical_frame_tf = Node(
@@ -100,7 +93,7 @@ def generate_launch_description():
 		name='drone_pose_correction_frame_publisher',
 		arguments=[
 			'0', '0', '0',                # translation x y z
-            drone_qw, drone_qx, drone_qy, drone_qz,   # rotation in RPY (rad): -90°, 0°, -90°
+            str(drone_config_instance.drone_quat[0]), str(drone_config_instance.drone_quat[1]), str(drone_config_instance.drone_quat[2]), str(drone_config_instance.drone_quat[3]),  # rotation in RPY (rad): -90°, 0°, -90°
             # '-0.5', '0.5', '-0.5', '-0.5',   # rotation in RPY (rad): -90°, 0°, -90°
             # '1, 0, 0, 0',   # rotation in RPY (rad): -90°, 0°, -90°
 			'map', 
@@ -109,7 +102,6 @@ def generate_launch_description():
 		output='screen'
 	)
 
-	map_to_slam = quaternion_inverse(slam_map_quat)
 
 	slam_map_frame_node = Node(
 		package='tf2_ros',
@@ -117,7 +109,7 @@ def generate_launch_description():
 		name='map_frame_publisher',
 		arguments=[
 			'0', '0', '0',                # translation x y z
-            slam_map_qw, slam_map_qx, slam_map_qy, slam_map_qz,   # rotation in RPY (rad): -90°, 0°, -90°
+            str(drone_config_instance.map_to_slam[0]), str(drone_config_instance.map_to_slam[1]), str(drone_config_instance.map_to_slam[2]), str(drone_config_instance.map_to_slam[3]),   # rotation in RPY (rad): -90°, 0°, -90°
             # '-0.5', '0.5', '-0.5', '-0.5',   # rotation in RPY (rad): -90°, 0°, -90°
             # '1, 0, 0, 0',   # rotation in RPY (rad): -90°, 0°, -90°
 			'initial_pose_map',

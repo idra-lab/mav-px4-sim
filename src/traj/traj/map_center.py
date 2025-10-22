@@ -85,6 +85,8 @@ class MapCenter(Node):
         self.declare_parameter('radius', 0.0)
         self.declare_parameter('omega', 0.0)
         self.declare_parameter('altitude', 1.0)
+        self.declare_parameter('center_position', [0.0, 0.0])
+        
         self.nav_state = VehicleStatus.NAVIGATION_STATE_MAX
         self.arming_state = VehicleStatus.ARMING_STATE_DISARMED
         # Note: no parameter callbacks are used to prevent sudden inflight changes of radii and omega 
@@ -93,6 +95,8 @@ class MapCenter(Node):
         self.radius = self.get_parameter('radius').value
         self.omega = self.get_parameter('omega').value
         self.altitude = self.get_parameter('altitude').value
+
+        self.center_position = self.get_parameter('center_position').value
 
 
 
@@ -131,6 +135,13 @@ class MapCenter(Node):
             roll, pitch, yaw = euler_from_quaternion([msg.q[0], msg.q[1], msg.q[2], msg.q[3]])
             self.initial_yaw = yaw   # Assuming yaw is the third element
 
+            self.initialized = True
+
+            #Find the closest point on the circle to start from
+            delta_x = self.initial_position[0] - self.center_position[0]
+            delta_y = self.initial_position[1] - self.center_position[1]
+            self.theta = np.arctan2(delta_y, delta_x) - self.initial_yaw
+
     def cmdloop_callback(self):
         # Publish offboard control modes
         offboard_msg = OffboardControlMode()
@@ -140,15 +151,15 @@ class MapCenter(Node):
         offboard_msg.acceleration=False
         self.publisher_offboard_mode.publish(offboard_msg)
         if (self.nav_state == VehicleStatus.NAVIGATION_STATE_OFFBOARD and self.arming_state == VehicleStatus.ARMING_STATE_ARMED):
+            if self.initialized:
+                trajectory_msg = TrajectorySetpoint()
+                trajectory_msg.position[0] = self.center_position[0] + self.radius * np.cos(self.initial_yaw  + self.theta)
+                trajectory_msg.position[1] = self.center_position[1] + self.radius * np.sin(self.initial_yaw  + self.theta)
+                trajectory_msg.position[2] = -self.altitude
+                trajectory_msg.yaw = self.initial_yaw + self.theta -np.pi  # Point towards the center of the circle
+                self.publisher_trajectory.publish(trajectory_msg)
 
-            trajectory_msg = TrajectorySetpoint()
-            trajectory_msg.position[0] = self.initial_position[0] + self.radius * np.cos(self.theta)
-            trajectory_msg.position[1] = self.initial_position[1] + self.radius * np.sin(self.theta)
-            trajectory_msg.position[2] = -self.altitude
-            trajectory_msg.yaw = self.initial_yaw + self.theta  + np.pi/2.0  # Point towards the center of the circle
-            self.publisher_trajectory.publish(trajectory_msg)
-
-            self.theta = self.theta + self.omega * self.dt
+                self.theta = self.theta + self.omega * self.dt
 
 
 def main(args=None):

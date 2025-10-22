@@ -289,7 +289,7 @@ void FullSmootherBenchmarkingNode::visualizeTrajectory(std::vector<splinePair>& 
 {
     visualization_msgs::msg::MarkerArray marker_array;
     
-    int n_points{100};
+    int n_points{200};
 
     int total_id{0};
 
@@ -300,9 +300,22 @@ void FullSmootherBenchmarkingNode::visualizeTrajectory(std::vector<splinePair>& 
 
         auto waypoints = spline.sampleSpline(n_points);
 
+        Eigen::Vector3d previous_waypoint = waypoints[0];
+
+        double max_dist{0.0};
+
         auto rots = rotspl.sampleSpline(n_points);
 
-        
+        for (int i{1}; i < n_points; ++i)
+        {
+            Eigen::Vector3d p1 = waypoints[i];
+            Eigen::Vector3d p0 = waypoints[i-1];
+            double dist = (p1 - p0).norm();
+            if (dist > max_dist)
+            {
+                max_dist = dist;
+            }
+        }
 
         for (int i{0}; i < n_points; ++i)
         {
@@ -317,13 +330,20 @@ void FullSmootherBenchmarkingNode::visualizeTrajectory(std::vector<splinePair>& 
             marker.pose.orientation.x = 0.0;
             marker.pose.orientation.y = 0.0;
             marker.pose.orientation.z = 0.0;
-            marker.scale.x = 0.1;
-            marker.scale.y = 0.1;
-            marker.scale.z = 0.1;
+            marker.scale.x = 0.02;   // slender shaft diameter
+            marker.scale.y = 0.1;   // smaller head diameter
+            marker.scale.z = 0.1;    // moderate head length
+
             
-            marker.color.r = 1.0f;
+            Eigen::Vector3d diff = waypoints[i] - previous_waypoint;
+            double dist = diff.norm();
+            double factor = dist/max_dist;
+
+            previous_waypoint = waypoints[i];
+
+            marker.color.r = factor;
             marker.color.g = 0.0f;
-            marker.color.b = 0.0f;
+            marker.color.b = (1 - factor);
             marker.color.a = 1.0f;
 
             geometry_msgs::msg::Point p;
@@ -333,7 +353,7 @@ void FullSmootherBenchmarkingNode::visualizeTrajectory(std::vector<splinePair>& 
             marker.points.push_back(p);
 
             geometry_msgs::msg::Point p2;
-            Eigen::Vector3d dir = rots[i].transpose() * Eigen::Vector3d(0.0, 0.0, 1.0);
+            Eigen::Vector3d dir = rots[i].transpose() * Eigen::Vector3d(0.0, 0.0, 0.5);
             p2.x = waypoints[i](0) + dir(0);
             p2.y = waypoints[i](1) + dir(1);
             p2.z = waypoints[i](2) + dir(2);

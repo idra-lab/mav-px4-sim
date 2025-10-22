@@ -6,13 +6,23 @@ def generate_launch_description():
 
 	ld = LaunchDescription()
 
+	gazebo_world = LaunchConfiguration("gz_world_file")
+
+	gazebo_world_launch_arg = DeclareLaunchArgument(
+		'gz_world_file', default_value='benchmarking.sdf'
+	)
+
 	gz_launch = IncludeLaunchDescription(
                             PythonLaunchDescriptionSource(
                                 PathJoinSubstitution([
                                                     FindPackageShare('nav_manager'),
                                                     'gz_env.launch.py'
                                                     ])
-                            )
+
+                            ), 
+							launch_arguments={
+                                							'gz_world_file': gazebo_world
+															}.items(),
     )
 
 	bridge_launch = IncludeLaunchDescription(

@@ -364,9 +364,9 @@ def generate_launch_description():
 		'delay_duration', default_value='5.0'
 	)
 
-	altitude = LaunchConfiguration('altitude', default='3.0')
+	altitude = LaunchConfiguration('altitude', default='2.0')
 	altitude_launch_arg = DeclareLaunchArgument(
-		'altitude', default_value='3.0'
+		'altitude', default_value='2.0'
 	)
 
 	""" 
@@ -380,24 +380,27 @@ def generate_launch_description():
 		package='traj',
 		executable='offboard_takeoff',
 		name='offboard_takeoff',
-		prefix='gnome-terminal --tab --',
+		# prefix='gnome-terminal --tab --',
 		output='screen', 
 		parameters = [{'altitude': LaunchConfiguration('altitude')}]
 	)
 
-	takeoff_node_delay = TimerAction(
-		period=delay_duration,  # delay in seconds
-		actions=[takeoff_node]
-	)
+	# takeoff_node_delay = TimerAction(
+	# 	period=delay_duration,  # delay in seconds
+	# 	actions=[takeoff_node]
+	# )
 
 
 	traj_utilities_nodes = [
 		delay_duration_launch_arg, 
 		altitude_launch_arg,
-		takeoff_node_delay,
+		# takeoff_node_delay,
+		takeoff_node
 	]
 
 	add_all_actions(ld, traj_utilities_nodes)
+
+
 
 	# keep a reference to the original include and replace px4_launch with an event-driven launcher
 	# px4_delay_launch = TimerAction(
@@ -425,18 +428,21 @@ def generate_launch_description():
                             # 'src/realsense-ros/realsense2_camera/examples/pointcloud/rs_d455_pointcloud_launch.py')
     )
 
-	# perception_sim_launch = Node(
-    #         package='orbslam3',
-    #         executable='simulation_rgbd',
-    #         name='orb_slam3',
-    #         output='screen',
-    #         # prefix='gnome-terminal --tab --',
-    #         arguments=[
-    #             orbslam3_path+ '/vocabulary/ORBvoc.txt',
-    #             orbslam3_path+ '/config/simulation/simulation_rgbd.yaml'
-    #         ]
-    # )
 
+	orbslam3_path = get_package_share_directory('orbslam3')
+
+	orb_slam_evaluator_node = Node(
+			package='orbslam3',
+			executable='simulation_rgbd_evaluator',
+			name='orb_slam3',
+			output='screen',
+			# prefix='gnome-terminal --tab --',
+			arguments=[
+				orbslam3_path+ '/vocabulary/ORBvoc.txt',
+				orbslam3_path+ '/config/simulation/simulation_rgbd.yaml'
+			]
+	)
+	ld.add_action(orb_slam_evaluator_node)
 	ld.add_action(perception_sim_launch)
 
 	"""
@@ -451,7 +457,7 @@ def generate_launch_description():
 		output='screen', 
 		parameters=[
 			{
-				'configuration_filename': os.path.join(benchmark_dir, 'config', 'benchmark_config.yaml'), 
+				'configuration_filename': os.path.join(benchmark_dir, 'config', 'cube_benchmark/launch_config.yaml'), 
 				'map_path': os.path.join(benchmark_dir, 'resource/maps/cube_benchmark', 'map_creator_file.yaml')
 
 			}
@@ -459,7 +465,7 @@ def generate_launch_description():
 
 	)
 
-	ld.add_action(benchmark_plan)	
+	# ld.add_action(benchmark_plan)	
 
 	traj_follower_node = Node(
 		package='traj',
@@ -469,7 +475,25 @@ def generate_launch_description():
 		output='screen', 
 	)
 
-	ld.add_action(traj_follower_node)
+	# ld.add_action(traj_follower_node)
+
+	plan_after_takeoff = RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=takeoff_node,
+                on_exit=[benchmark_plan],
+            )
+        )
+	
+	# ld.add_action(plan_after_takeoff)
+	
+	follow_traj_after_takeoff = RegisterEventHandler(
+			event_handler=OnProcessExit(
+				target_action=takeoff_node,
+				on_exit=[traj_follower_node],
+			)
+		)
+
+	add_all_actions(ld, [plan_after_takeoff, follow_traj_after_takeoff])
 
 
 

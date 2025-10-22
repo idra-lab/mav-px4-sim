@@ -2,7 +2,7 @@ import os
 from launch import LaunchDescription, LaunchContext
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction, SetLaunchConfiguration
 from launch_ros.actions import Node, SetParameter, SetRemap
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, TextSubstitution
 from ament_index_python.packages import get_package_share_directory, get_package_prefix
 
 from ament_index_python.packages import get_package_share_directory
@@ -25,6 +25,8 @@ from rcl_interfaces.msg import ParameterType
 
 from launch_ros.substitutions import FindPackageShare
 from launch.actions import RegisterEventHandler
+
+import yaml
 from launch.event_handlers import OnExecutionComplete, OnProcessExit
 
 
@@ -78,10 +80,91 @@ def collect_imported_names():
     return sorted(set(imported))
 
 
-# if __name__ == '__main__':
-#     # This allows the launch file to be run directly with Python
-#     print(collect_imported_names())
+def set_drone_pose(pose_string: str): 
+    d_pos = [float(x) for x in pose_string.split()[:3]]
+    d_ang = [float(x) for x in pose_string.split()[3:]]
+    d_ang[2] -= 1.57  # Adjust yaw to match the expected orientation
 
+    d_q = quaternion_from_euler(
+
+        d_ang[0],
+        d_ang[1],
+        d_ang[2]
+    )
+
+    return d_pos, d_ang, d_q
+
+pose_str = '-10 0 0.01 0 0 0.0'
+
+drone_position, drone_angles, drone_quat = set_drone_pose(pose_str)
+
+
+# drone_position = [float(x) for x in pose_str.split()[:3]]
+# drone_angles = [float(x) for x in pose_str.split()[3:]]
+# drone_angles[2] -= 1.57  # Adjust yaw to match the expected orientation
+
+# drone_quat = quaternion_from_euler(
+
+#     drone_angles[0],
+#     drone_angles[1],
+#     drone_angles[2]
+# )
+
+slam_map_quat = [-0.5, 0.5, -0.5, -0.5]
+
+map_to_slam = quaternion_inverse(slam_map_quat)
+
+
+class DroneConfig: 
+	
+    def __init__(self):
+        self.pose_str = pose_str
+        self.drone_position = drone_position
+        self.drone_angles = drone_angles
+        self.drone_quat = drone_quat
+        self.slam_map_quat = slam_map_quat
+        self.map_to_slam = map_to_slam
+
+    def read_launch_configuration(self, path: str): 
+        with open(path) as stream:
+            try:
+                data = yaml.safe_load(stream)
+
+                pose = data["env"]["initial_pose"]
+
+                self.pose_str = ' '.join([str(x) for x in pose])
+
+                self.drone_position, self.drone_angles, self.drone_quat = set_drone_pose(self.pose_str)
+
+                self.slam_map_quat = data["env"]["slam_map_quat"]
+
+                self.map_to_slam = quaternion_inverse(self.slam_map_quat)
+
+
+            except yaml.YAMLError as exc:
+                print(exc)
+            
+
+
+drone_config_instance = DroneConfig()
+
+local_config_path = LaunchConfiguration("config_path", default=os.path.join(get_package_share_directory('benchmarking'), 'config', 'cube_benchmark/launch_config.yaml'))
+
+
+
+def read_yaml_config(context, *args, **kwargs):
+
+
+    
+    # local_config_path = LaunchConfiguration("config_path", default=os.path.join(get_package_share_directory('benchmarking'), 'config', 'cube_benchmark/launch_config.yaml')).perform(context)
+    config_path_str = local_config_path.perform(context)
+    print(f"Loading config from: {config_path_str}")
+    drone_config_instance.read_launch_configuration(config_path_str)
+
+    print(f"DroneConfig.param = {drone_config_instance.drone_position}")
+
+    return []
+        
 
 __all__ = collect_imported_names()
 # __all__ = [

@@ -711,7 +711,7 @@ bool FullSmoother::plan(void)
 bool FullSmoother::isStateValid(const ob::State *state)
 {
 	// Remove const-ness to enforce bounds (not recommended unless necessary)
-	space->enforceBounds(const_cast<ob::State*>(state));
+	// space->enforceBounds(const_cast<ob::State*>(state));
     // cast the abstract state type to the type we expect
 	const SE3State_ *pos = state->as<SE3State_>();
 
@@ -1089,10 +1089,64 @@ void FullSmoother::setParametersFromConfiguration()
 
 
 
+/* 
+
+
+MOTION VLAIDATOR FUNCTIONS
+
+
+
+*/
+bool RayCastMotionValidator::seesOneOccupied(const ob::State *state) const
+{
+// cast the abstract state type to the type we expect
+	const SE3State_ *pos = state->as<SE3State_>();
+
+	// position and camera orientation
+	Eigen::Vector3d position(pos->getX(), pos->getY(), pos->getZ());
+	const auto &rotation = pos->rotation();
+	Eigen::Quaterniond quat(rotation.w, rotation.x, rotation.y, rotation.z);
+
+	// camera Z axis in world frame
+	Eigen::Vector3d cam_dir = quat * Eigen::Vector3d::UnitZ();
+	if (cam_dir.norm() == 0.0) return false;
+	cam_dir.normalize();
+
+	if (!map) return false;
+
+	// cast a single ray from the camera position in the camera Z direction up to FOV distance
+	double max_range = 2.0*map->getFovDistance();
+	Eigen::Vector3d end_pos = position + cam_dir * max_range;
+
+	octomap::point3d op0(position.x(), position.y(), position.z());
+	octomap::point3d op1(end_pos.x(), end_pos.y(), end_pos.z());
+
+	std::vector<octomap::point3d> ray_pts;
+	bool ok = map->computeRay(op0, op1, ray_pts);
+	if (!ok) return false;
+
+	// If any point along the ray is not free (i.e. occupied), return true
+	for (const auto &pt : ray_pts)
+	{
+		if (!map->areNodesAndVicinityFree(pt, map->getVoxelPadding(), true))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
 bool RayCastMotionValidator::isMotionValid(const ob::State *s1, const ob::State *s2) const
 {
   const SE3State_ *p_1 = s1->as<SE3State_>();
   const SE3State_ *p_2 = s2->as<SE3State_>();
+
+  if (!seesOneOccupied(s1) || !seesOneOccupied(s2))
+  {
+	return false;
+  }
 
   octomap::point3d p1(p_1->getX(), p_1->getY(), p_1->getZ());
   octomap::point3d p2(p_2->getX(), p_2->getY(), p_2->getZ());
@@ -1158,6 +1212,11 @@ bool RayCastMotionValidator::isMotionValid(const ob::State *s1, const ob::State 
   const SE3State_ *p_1 = s1->as<SE3State_>();
   const SE3State_ *p_2 = s2->as<SE3State_>();
 
+  if (!seesOneOccupied(s1) || !seesOneOccupied(s2))
+  {
+	return false;
+  }
+
   ob::State *lastValidState = lastValid.first;
   if (lastValidState)
   {
@@ -1220,6 +1279,7 @@ ompl::base::Cost VisibilityObjective::stateCost(const ompl::base::State *s) cons
     double visibility = computeVisibilityCost(s);
 
     double cost =  (1.0 - visibility) ;
+	// double cost = 0.0 ; 
 
     return ompl::base::Cost(cost);
 }
