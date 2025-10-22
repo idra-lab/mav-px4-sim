@@ -300,7 +300,7 @@ bool FullSmoother::setGoal(double x, double y, double z, double qw, double qx, d
 	temp->as<SE3State_>()->rotation().y = qy;
 	temp->as<SE3State_>()->rotation().z = qz;
 	
-	if(isStateValid(temp)) // Check if the goal state is valid
+	// if(isStateValid(temp)) // Check if the goal state is valid
 	{	
 		// DBG("Goal point set to: " << x << " " << y << " " << z);
 		space->enforceBounds(goal.get());
@@ -316,11 +316,11 @@ bool FullSmoother::setGoal(double x, double y, double z, double qw, double qx, d
 		
 		return true;
 	}
-	else
-	{
-		std::cout << "Goal state: " << x << " " << y << " " << z << " invalid\n";
-		return false;
-	}
+	// else
+	// {
+	// 	std::cout << "Goal state: " << x << " " << y << " " << z << " invalid\n";
+	// 	return false;
+	// }
 }
 
 

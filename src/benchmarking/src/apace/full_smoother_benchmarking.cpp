@@ -16,19 +16,20 @@ FullSmootherBenchmarkingNode::FullSmootherBenchmarkingNode() : Node("full_smooth
     m_tracked_pose_sub = this->create_subscription<geometry_msgs::msg::PoseStamped>("/slam/tracked_pose",  10, std::bind(&FullSmootherBenchmarkingNode::tracked_pose_callback, this, std::placeholders::_1));
 
     m_marker_pub = this->create_publisher<visualization_msgs::msg::Marker>("/obstacles_markers", 10);
-    m_splines_pub = this->create_publisher<visualization_msgs::msg::Marker>("/spline_markers", 10);
+    m_splines_pub = this->create_publisher<visualization_msgs::msg::MarkerArray>("/spline_markers", 10);
     path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("drone_path", rclcpp::QoS(1).transient_local());
     se3_trajectory_publisher_ = this->create_publisher<trajectory_msgs::msg::SE3Trajectory>("drone_se3_trajectory", rclcpp::QoS(1).transient_local());
     m_octomap_node = std::make_shared<FullUncertainOctomapNode>(m_planner->getPlannerConfig());
 
     m_octomap_node->setMapFrameId("slam_map");
-    
+
+    m_octomap_node->destroySubscribers();    
     this->declare_parameter<std::string>("map_path", "map_creator_file.yaml");
     
     std::string map_path = this->get_parameter("map_path").as_string();
     
-    RCLCPP_INFO(this->get_logger(), "NOT LOADING THE MAP");
-    // this->loadMap(map_path);
+    // RCLCPP_INFO(this->get_logger(), "NOT LOADING THE MAP");
+    this->loadMap(map_path);
     RCLCPP_INFO(this->get_logger(), "Full Smoother Benchmarking Node started.");
 
     
@@ -74,7 +75,8 @@ void FullSmootherBenchmarkingNode::tracked_pose_callback(const geometry_msgs::ms
         return;
     }
 
-    planPath();
+    if (mapLoaded_)
+    {planPath();}
 }
 
 void FullSmootherBenchmarkingNode::pose_with_covariance_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
@@ -184,6 +186,7 @@ void FullSmootherBenchmarkingNode::loadMap(std::string map_path)
     RCLCPP_INFO(this->get_logger(), "Loading map from file: %s", map_path.c_str());
     m_octomap_node->readFromFile(map_path);
     RCLCPP_INFO(this->get_logger(), "Map loaded.");
+    mapLoaded_ = true;
 
 }
 
@@ -284,38 +287,64 @@ rclcpp::Time FullSmootherBenchmarkingNode::convertTime(double time_in_seconds)
 
 void FullSmootherBenchmarkingNode::visualizeTrajectory(std::vector<splinePair>& splines)
 {
-    visualization_msgs::msg::Marker marker;
-    marker.header.frame_id = "slam_map";
-    marker.header.stamp = this->now();
-    marker.ns = "drone_planner_splines";
-    marker.id = 0;
-    marker.type = visualization_msgs::msg::Marker::POINTS;
-    marker.action = visualization_msgs::msg::Marker::ADD;
-    marker.pose.orientation.w = 1.0;
-    marker.scale.x = 0.1;
-    marker.scale.y = 0.1;
-    marker.color.r = 1.0f;
-    marker.color.g = 0.0f;
-    marker.color.b = 0.0f;
-    marker.color.a = 1.0f;
+    visualization_msgs::msg::MarkerArray marker_array;
+    
+    int n_points{100};
+
+    int total_id{0};
 
     for (const auto& spline_pair : splines)
     {
         const auto& spline = spline_pair.first;
+        const auto& rotspl = spline_pair.second;
 
-        auto waypoints = spline.sampleSpline(100);
+        auto waypoints = spline.sampleSpline(n_points);
 
-        for (const auto& point : waypoints)
+        auto rots = rotspl.sampleSpline(n_points);
+
+        
+
+        for (int i{0}; i < n_points; ++i)
         {
+            visualization_msgs::msg::Marker marker;
+            marker.header.frame_id = "slam_map";
+            marker.header.stamp = this->now();
+            marker.ns = std::string("point") + std::to_string(total_id);
+            marker.id = total_id++;
+            marker.type = visualization_msgs::msg::Marker::ARROW;
+            marker.action = visualization_msgs::msg::Marker::ADD;
+            marker.pose.orientation.w = 1.0;
+            marker.pose.orientation.x = 0.0;
+            marker.pose.orientation.y = 0.0;
+            marker.pose.orientation.z = 0.0;
+            marker.scale.x = 0.1;
+            marker.scale.y = 0.1;
+            marker.scale.z = 0.1;
+            
+            marker.color.r = 1.0f;
+            marker.color.g = 0.0f;
+            marker.color.b = 0.0f;
+            marker.color.a = 1.0f;
+
             geometry_msgs::msg::Point p;
-            p.x = point.x();
-            p.y = point.y();
-            p.z = point.z();
+            p.x = waypoints[i](0);
+            p.y = waypoints[i](1);
+            p.z = waypoints[i](2);
             marker.points.push_back(p);
+
+            geometry_msgs::msg::Point p2;
+            Eigen::Vector3d dir = rots[i].transpose() * Eigen::Vector3d(0.0, 0.0, 1.0);
+            p2.x = waypoints[i](0) + dir(0);
+            p2.y = waypoints[i](1) + dir(1);
+            p2.z = waypoints[i](2) + dir(2);
+            marker.points.push_back(p2);
+
+            marker_array.markers.push_back(marker);
         }
+        
     }
 
-    m_splines_pub->publish(marker);
+    m_splines_pub->publish(marker_array);
 }
 
 

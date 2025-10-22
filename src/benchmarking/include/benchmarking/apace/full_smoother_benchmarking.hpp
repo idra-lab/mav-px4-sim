@@ -10,6 +10,7 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include "octomap_msgs/msg/octomap.hpp"
 #include <visualization_msgs/msg/marker.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <nav_msgs/srv/get_plan.hpp>
 #include <nav_msgs/msg/path.hpp>
@@ -50,7 +51,7 @@ namespace apace {
         rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr m_tracked_pose_sub;
 
         rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr m_marker_pub;
-        rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr m_splines_pub;
+        rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr m_splines_pub;
         rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
         rclcpp::Publisher<trajectory_msgs::msg::SE3Trajectory>::SharedPtr se3_trajectory_publisher_;
 
@@ -83,6 +84,8 @@ namespace apace {
         void visualizeTrajectory(std::vector<splinePair>& splines);
 
         rclcpp::Time convertTime(double time_in_seconds);
+
+        bool mapLoaded_{false};
 
     };
 
