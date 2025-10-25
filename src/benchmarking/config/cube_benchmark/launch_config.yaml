@@ -35,7 +35,7 @@ octomap:
   sigma_level: 6.25
   chi2_treshold: -1.0
   ground_filter_height: 1.0
-  probability_hit: 0.51
+  probability_hit: 0.6
   probability_miss: 0.01
   threshold_minimum: 0.12
   threshold_maximum: 0.97
