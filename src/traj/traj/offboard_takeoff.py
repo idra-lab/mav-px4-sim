@@ -164,6 +164,7 @@ class OffboardTakeoff(Node):
         if self.arming_state != VehicleStatus.ARMING_STATE_ARMED and not self.sent_arm_msg:
             self.arm()
             self.sent_arm_msg = True
+            self.set_offboard_mode()
 
         if msg.nav_state == VehicleStatus.NAVIGATION_STATE_AUTO_LOITER or msg.nav_state == VehicleStatus.NAVIGATION_STATE_POSCTL:
             if not self.sent_offboard_msg:
@@ -189,6 +190,7 @@ class OffboardTakeoff(Node):
                 self.takeoff_completed = True
             
     def cmdloop_callback(self):
+        self.set_offboard_mode()
         # Publish offboard control modes+
         offboard_msg = OffboardControlMode()
         offboard_msg.timestamp = int(Clock().now().nanoseconds / 1000)

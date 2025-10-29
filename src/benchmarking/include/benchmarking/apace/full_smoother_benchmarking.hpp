@@ -31,32 +31,33 @@ namespace apace {
         std::shared_ptr<FullUncertainOctomapNode> getOctomapNode() const { return m_octomap_node; };
 
         
-    private:
-
+        
+        private:
+        
         typedef Eigen::Matrix<float,6,6> poseCovMat_;
         typedef Eigen::Matrix<float,3,3> rotMat_;
         typedef Eigen::Vector<float,3> posVec_;
         typedef Eigen::Quaternionf quat_;
-
+        
         typedef FullSmoother::splinePair splinePair;
-
+        
         std::shared_ptr<FullSmoother> m_planner;
-
+        
         std::shared_ptr<FullUncertainOctomapNode> m_octomap_node;
-    
+        
         void getConfigParameterFile();
         std::string m_config_parameter_file;
-
+        
         rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr m_pose_sub;
         rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr m_tracked_pose_sub;
-
+        
         rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr m_marker_pub;
         rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr m_splines_pub;
         rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
         rclcpp::Publisher<trajectory_msgs::msg::SE3Trajectory>::SharedPtr se3_trajectory_publisher_;
-
+        
         void pose_with_covariance_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg);
-
+        
         void tracked_pose_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
         
         nav_msgs::msg::Path extractPath(ompl::base::PathPtr path_ptr);
@@ -64,22 +65,27 @@ namespace apace {
         poseCovMat_ latestCovariance;
         posVec_ latestPosition, trackedPosition, lastPositon;
         rotMat_ latestRotation, trackedRotation;
-
+        
         bool initialized_{false};
         bool globalGoalSet_{false};
-
+        
         double lastTime_{0.0};
         Eigen::Vector3d trackedVelocity_{0, 0, 0};
-
+        
         bool tracking_began{false};
         
         void loadMap(std::string map_path);
-
+        void loadMapFromPCL(std::string map_path);
+        void saveSplines(std::string filename, std::vector<splinePair>& splines);
+        
         void planPath();
-
+        
         void publishPath();
         void publishSplines(std::vector<splinePair>& splines);
         void publishMap();
+        
+        double duration;
+
 
         void visualizeTrajectory(std::vector<splinePair>& splines);
 

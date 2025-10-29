@@ -24,7 +24,7 @@ FullSmootherBenchmarkingNode::FullSmootherBenchmarkingNode() : Node("full_smooth
     m_octomap_node->setMapFrameId("slam_map");
 
     m_octomap_node->destroySubscribers();    
-    this->declare_parameter<std::string>("map_path", "map_creator_file.yaml");
+    this->declare_parameter<std::string>("map_path", "planned_map.yaml");
     
     std::string map_path = this->get_parameter("map_path").as_string();
     
@@ -168,12 +168,16 @@ void FullSmootherBenchmarkingNode::planPath()
 
     
     auto end_time = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
     RCLCPP_INFO(this->get_logger(), "Planning took %ld ms", duration);
     
     publishSplines(splines_path);
 
     visualizeTrajectory(splines_path);
+
+    saveSplines("planned_splines.yaml", splines_path);
+    this->m_octomap_node->publishMapAsCubes(this->now());
+    this->m_octomap_node->saveMapAsPcl("planned_map.pcd");
 
     rclcpp::shutdown();
 
@@ -186,6 +190,15 @@ void FullSmootherBenchmarkingNode::loadMap(std::string map_path)
     RCLCPP_INFO(this->get_logger(), "Loading map from file: %s", map_path.c_str());
     m_octomap_node->readFromFile(map_path);
     RCLCPP_INFO(this->get_logger(), "Map loaded.");
+    mapLoaded_ = true;
+
+}
+
+void FullSmootherBenchmarkingNode::loadMapFromPCL(std::string map_path)
+{
+    RCLCPP_INFO(this->get_logger(), "Loading map from PCL file: %s", map_path.c_str());
+    m_octomap_node->readFromPCLFile(map_path);
+    RCLCPP_INFO(this->get_logger(), "Map loaded from PCL file.");
     mapLoaded_ = true;
 
 }
@@ -365,6 +378,73 @@ void FullSmootherBenchmarkingNode::visualizeTrajectory(std::vector<splinePair>& 
     }
 
     m_splines_pub->publish(marker_array);
+}
+
+void FullSmootherBenchmarkingNode::saveSplines(std::string filename, std::vector<splinePair>& splines)
+{
+    YAML::Node _baseNode;
+
+    int i{0};
+
+    float previousTime{0.0f};
+
+    _baseNode["Planning_time"] = duration;
+
+    for (const auto& spline_pair : splines)
+    {
+        const auto& spline = spline_pair.first;
+
+        auto transpl = spline_pair.first; 
+        auto rotspl = spline_pair.second;
+
+
+        double start_time = previousTime;
+        double final_time = start_time+transpl.getTime();
+
+        _baseNode[i]["Translation"]["start_time"] = start_time;
+        _baseNode[i]["Translation"]["end_time"] = final_time;
+        _baseNode[i]["Rotation"]["start_time"] = start_time;
+        _baseNode[i]["Rotation"]["end_time"] = final_time;
+
+        previousTime = final_time;
+        
+        _baseNode[i]["Translation"]["dimensions"] = 3;
+        _baseNode[i]["Translation"]["degree"] = transpl.getDegree_();
+        
+        
+        
+        _baseNode[i]["Rotation"]["dimensions"] = 3;
+        _baseNode[i]["Rotation"]["degree"] = rotspl.getDegree_();
+
+        auto transpl_knots = transpl._get_knots_();
+        auto transpl_ctrl_points = transpl._getCtrlPoints_();
+
+
+        _baseNode[i]["Translation"]["Knots"] = std::vector<double>(transpl_knots.data(), transpl_knots.data() + transpl_knots.size());
+        _baseNode[i]["Translation"]["ControlPoints"] = std::vector<double>(transpl_ctrl_points.data(), transpl_ctrl_points.data() + transpl_ctrl_points.size());
+        
+        
+        auto rotspl_knots = rotspl._get_knots_();
+        auto rotspl_ctrl_points = rotspl._getCtrlPoints_();
+        
+        _baseNode[i]["Rotation"]["Knots"] = std::vector<double>(rotspl_knots.data(), rotspl_knots.data() + rotspl_knots.size());
+        _baseNode[i]["Rotation"]["ControlPoints"] = std::vector<double>(rotspl_ctrl_points.data(), rotspl_ctrl_points.data() + rotspl_ctrl_points.size());
+
+
+        Eigen::Quaterniond start_quat(rotspl.getStartOrientation_());
+
+        _baseNode[i]["Rotation"]["InitialOrientation"]["w"] = start_quat.w();
+        _baseNode[i]["Rotation"]["InitialOrientation"]["x"] = start_quat.x();
+        _baseNode[i]["Rotation"]["InitialOrientation"]["y"] = start_quat.y();
+        _baseNode[i]["Rotation"]["InitialOrientation"]["z"] = start_quat.z();
+
+        ++i;
+    }
+    
+
+    std::ofstream outFile(filename); 
+
+    outFile << _baseNode;
 }
 
 
