@@ -44,7 +44,7 @@ def create_table_and_plots(folder, show_plot=False):
 
     N_points = 1000
 
-    folder = "bags/dataset/good_run/"
+    # folder = "bags/dataset/good_run/"
 
     traj_ref = file_interface.read_tum_trajectory_file(folder + "groundtruth_rotated.txt")
     traj_est = file_interface.read_tum_trajectory_file(folder + "camera_orb_slam3_fixed.txt")
@@ -153,13 +153,13 @@ def create_table_and_plots(folder, show_plot=False):
     table["GT Final Dist to Goal"] = np.linalg.norm(last_ref_pos - goal_position)
     table["Est Final Dist to Goal"] = np.linalg.norm(last_est_pos - goal_position)
 
-    print("GT Trajectory Length: ", traj_ref.path_length)
-    print("Est Trajectory Length: ", traj_est.path_length)
+    # print("GT Trajectory Length: ", traj_ref.path_length)
+    # print("Est Trajectory Length: ", traj_est.path_length)
 
     # Drift: 
     table["Est Drift"] = np.linalg.norm(last_ref_pos - last_est_pos)/traj_ref.path_length
 
-    print(table)
+    # print(table)
 
 
 
@@ -170,7 +170,7 @@ def create_table_and_plots(folder, show_plot=False):
     fig0 = plt.figure()
     ax0 = fig0.add_subplot(111)
     ax0.plot(est_time_downsampled[:-1], est_speeds, label="Est", color=colors[0],  linewidth=1, zorder=2)
-    ax0.plot(ref_time_downsampled[:-1], ref_speeds, label="GT", color='black', linewidth=2, zorder=3)
+    ax0.plot(ref_time_downsampled[:-1], ref_speeds, label="GT", color='black', linewidth=1, zorder=3)
     ax0.axhline(table["GT Mean Speed"], color=colors[8], linestyle='--', label=f'mean', zorder=4)
     # ax0.axhline(table["GT Median Speed"], color=colors[2], linestyle='-.', label=f'median', zorder=1)
     # ax0.fill_between(ref_time_downsampled[:-1], table["GT Mean Speed"]-table["GT Speed Variance"], table["GT Mean Speed"]+table["GT Speed Variance"], color='grey', alpha=0.3, label=f'$\pm 1\sigma$', zorder=1)
@@ -188,7 +188,7 @@ def create_table_and_plots(folder, show_plot=False):
     ax1 = fig1.add_subplot(111)
 
     ax1.plot(est_time_downsampled[:-1], est_angular_speeds, label="Est", color=colors[0],  linewidth=1, zorder=2)
-    ax1.plot(ref_time_downsampled[:-1], ref_angular_speeds, label="GT", color='black', linewidth=2, zorder=3)
+    ax1.plot(ref_time_downsampled[:-1], ref_angular_speeds, label="GT", color='black', linewidth=1, alpha=0.7, zorder=3)
     ax1.axhline(table["GT Mean Angular Speed"], color=colors[8], linestyle='--', label=f'mean', zorder=4)
 
     ax1.set_xlabel(r"$t\,(s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
@@ -205,6 +205,14 @@ def create_table_and_plots(folder, show_plot=False):
 
     est_positions_aligned = traj_est_aligned.positions_xyz
 
+    # gt_orientations_MAP = [  TF.Rotation.from_quat(orient, scalar_first=True).as_matrix() for orient in traj_ref.orientations_quat_wxyz]
+    # est_orientations_MAP = [ TF.Rotation.from_quat(orient, scalar_first=True).as_matrix() for orient in traj_est.orientations_quat_wxyz]
+    # est_aligned_orientations_MAP = [ TF.Rotation.from_quat(orient, scalar_first=True).as_matrix() for orient in traj_est_aligned.orientations_quat_wxyz]
+    gt_orientations_MAP = [np.linalg.inv(r_DRONE_CAM.as_matrix() @np.linalg.inv(r_DRONE_CAM.as_matrix() @ TF.Rotation.from_quat(orient, scalar_first=True).as_matrix())) for orient in traj_ref.orientations_quat_wxyz]
+    est_orientations_MAP = [np.linalg.inv(r_DRONE_CAM.as_matrix() @np.linalg.inv(r_DRONE_CAM.as_matrix() @ TF.Rotation.from_quat(orient, scalar_first=True).as_matrix())) for orient in traj_est.orientations_quat_wxyz]
+    est_aligned_orientations_MAP = [np.linalg.inv(r_DRONE_CAM.as_matrix() @np.linalg.inv(r_DRONE_CAM.as_matrix() @ TF.Rotation.from_quat(orient, scalar_first=True).as_matrix())) for orient in traj_est_aligned.orientations_quat_wxyz]
+
+
 
     gt_x = ref_positions[:-1,2]
     gt_y = -ref_positions[:-1,0]
@@ -213,7 +221,13 @@ def create_table_and_plots(folder, show_plot=False):
     est_y = -est_positions_aligned[:-1,0]
     est_z = -est_positions_aligned[:-1,1]
 
+    gt_roll = TF.Rotation.from_matrix(np.array(gt_orientations_MAP)).as_euler('xyz', degrees=True)[:,0]
+    est_roll = TF.Rotation.from_matrix(np.array(est_orientations_MAP)).as_euler('xyz', degrees=True)[:,0]
 
+    gt_pitch = TF.Rotation.from_matrix(np.array(gt_orientations_MAP)).as_euler('xyz', degrees=True)[:,1]
+    est_pitch = TF.Rotation.from_matrix(np.array(est_orientations_MAP)).as_euler('xyz', degrees=True)[:,1]
+    gt_yaw = TF.Rotation.from_matrix(np.array(gt_orientations_MAP)).as_euler('xyz', degrees=True)[:,2]
+    est_yaw = TF.Rotation.from_matrix(np.array(est_orientations_MAP)).as_euler('xyz', degrees=True)[:,2]
 
     fig2 = plt.figure()
 
@@ -223,12 +237,14 @@ def create_table_and_plots(folder, show_plot=False):
     ax2.scatter(est_x, est_y, 
                 c=est_speeds, cmap="coolwarm",  s=0.2, alpha=0.5,
                 label="Est", zorder=3)
+    
     ax2.plot(gt_x, gt_y, 
                 c='black',   alpha=0.5,
-                label="Est", linewidth=1, zorder=2)
+                label="GT", linewidth=1, zorder=2)
+    
     ax2.set_xlabel(r"$x\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
     ax2.set_ylabel(r"$y\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
-    ax2.legend(loc="best", ncol=2, fontsize=LABELSIZE)   
+    # ax2.legend(loc="best", ncol=2, fontsize=LABELSIZE)   
     ax2.tick_params(labelsize=LABELSIZE)
     # fig2.tight_layout()
 
@@ -247,7 +263,7 @@ def create_table_and_plots(folder, show_plot=False):
                 label="GT", linewidth=1, zorder=2)
     ax3.set_xlabel(r"$x\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
     ax3.set_ylabel(r"$z\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
-    ax3.legend(loc="best", ncol=2, fontsize=LABELSIZE)   
+    # ax3.legend(loc="best", ncol=2, fontsize=LABELSIZE)   
     ax3.tick_params(labelsize=LABELSIZE)
     # fig3.tight_layout()
 
@@ -269,7 +285,7 @@ def create_table_and_plots(folder, show_plot=False):
                 label="GT", linewidth=1, zorder=2)
     ax4.set_xlabel(r"$y\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
     ax4.set_ylabel(r"$z\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
-    ax4.legend(loc="best", ncol=3, fontsize=LABELSIZE)   
+    # ax4.legend(loc="best", ncol=2, fontsize=LABELSIZE)   
     ax4.tick_params(labelsize=LABELSIZE)
     ax4.invert_xaxis()
 
@@ -281,13 +297,36 @@ def create_table_and_plots(folder, show_plot=False):
 
     fig_3d = plt.figure()
     ax = fig_3d.add_subplot(111, projection='3d')
+    x_dirs = np.array([rot @ np.array([[1],[0],[0]]) for rot in gt_orientations_MAP])
+
+    x_dirs = x_dirs.reshape(-1,3)
+
+    quiver_rate = 50
+
+    ax.quiver(gt_x[::quiver_rate], gt_y[::quiver_rate], gt_z[::quiver_rate], x_dirs[::quiver_rate,0], x_dirs[::quiver_rate,1], x_dirs[::quiver_rate,2], length=0.8, normalize=True, arrow_length_ratio=0.0, linewidths=0.5, color='#B12C00', alpha=0.6, zorder=1)
 
     ax.plot(gt_x, gt_y, gt_z, 
                 c='black', linewidth=2, alpha=0.5,
                 label="GT", zorder=3)
+    
+    ax.plot(gt_x, gt_y, np.min(gt_z)*np.ones_like(gt_z), 
+                c='gray', linestyle='--', linewidth=0.5, alpha=0.5)
+    ax.plot(gt_x, np.max(gt_y)*np.ones_like(gt_y), gt_z, 
+                c='gray', linestyle='--', linewidth=0.5, alpha=0.5)
+    ax.plot(np.min(gt_x)*np.ones_like(gt_x), gt_y, gt_z, 
+                c='gray', linestyle='--', linewidth=0.5, alpha=0.5)
     ax.scatter(est_x, est_y, est_z, 
                 cmap='coolwarm',   alpha=0.5,
-                label="Est", s=0.2, zorder=2)
+                 label="Est",s=0.2, zorder=2)
+    ax.scatter(np.min(est_x)*np.ones_like(est_x), est_y, est_z, 
+                cmap='coolwarm',   alpha=0.2,
+                 s=0.006, zorder=4)
+    ax.scatter(est_x, np.max(est_y)*np.ones_like(est_y), est_z, 
+                cmap='coolwarm',   alpha=0.2,
+                 s=0.006, zorder=4)
+    ax.scatter(est_x, est_y, np.min(est_z)*np.ones_like(est_z), 
+                cmap='coolwarm',   alpha=0.2,
+                 s=0.006, zorder=4)
 
     ax.view_init(elev=20., azim=-100.0, roll=None, vertical_axis='z')
     ax.tick_params(pad=LABELPADS, labelsize=LABELSIZE)
@@ -302,7 +341,7 @@ def create_table_and_plots(folder, show_plot=False):
     # ax.set_title("All Runs Overlayed")
     # ax.legend(handles=handles, loc="best", ncol=2, fontsize=8)
     ax.legend( loc="best", ncol=2, fontsize=LABELSIZE)
-    ax.grid(False)
+    # ax.grid(False)
     # Get rid of colored axes planes
     # First remove fill
     ax.xaxis.pane.fill = False
@@ -316,14 +355,228 @@ def create_table_and_plots(folder, show_plot=False):
 
     fig_3d.savefig(folder + "traj_3d.pdf", format='pdf')
 
+
+    """ 
+     TIMEPLOTS
+    """
+
+    fig5 = plt.figure()
+    ax5 = fig5.add_subplot(111)
+
+    ax5.plot(est_time_downsampled[:-1], est_x, label="Est", color=colors[0],  linewidth=1, zorder=2)
+    ax5.plot(ref_time_downsampled[:-1], gt_x, label="GT", color='black', linewidth=0.5, zorder=3)
+
+    ax5.set_xlabel(r"$t\,(s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax5.set_ylabel(r"$x\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    # ax5.legend(loc="best", ncol=2, fontsize=LABELSIZE)   
+    ax5.tick_params(labelsize=LABELSIZE)
+    # fig1.tight_layout()
+
+    fig5.savefig(folder + "x_vs_t.pdf", format='pdf')
+
+    fig6 = plt.figure()
+    ax6 = fig6.add_subplot(111)
+
+    ax6.plot(est_time_downsampled[:-1], est_y, label="Est", color=colors[0],  linewidth=1, zorder=2)
+    ax6.plot(ref_time_downsampled[:-1], gt_y, label="GT", color='black', linewidth=0.5, zorder=3)
+
+    ax6.set_xlabel(r"$t\,(s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax6.set_ylabel(r"$y\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    # ax6.legend(loc="best", ncol=2, fontsize=LABELSIZE)   
+    ax6.tick_params(labelsize=LABELSIZE)
+    # fig1.tight_layout()
+
+    fig6.savefig(folder + "y_vs_t.pdf", format='pdf')
+
+    fig7 = plt.figure()
+    ax7 = fig7.add_subplot(111)
+
+    ax7.plot(est_time_downsampled[:-1], est_z, label="Est", color=colors[0],  linewidth=1, zorder=2)
+    ax7.plot(ref_time_downsampled[:-1], gt_z, label="GT", color='black', linewidth=0.5, zorder=3)
+
+    ax7.set_xlabel(r"$t\,(s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax7.set_ylabel(r"$z\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    # ax7.legend(loc="best", ncol=2, fontsize=LABELSIZE)   
+    ax7.tick_params(labelsize=LABELSIZE)
+    # fig1.tight_layout()
+
+    fig7.savefig(folder + "z_vs_t.pdf", format='pdf')
+
+
+    """
+     ORIENTATION TIMEPLOTS
+    """
+
+    fig8 = plt.figure()
+    ax8 = fig8.add_subplot(111)
+
+    ax8.plot(est_time_downsampled, est_roll, label="Est", color=colors[0],  linewidth=1, zorder=2)
+    ax8.plot(ref_time_downsampled, gt_roll, label="GT", color='black', linewidth=0.5, zorder=3)
+    ax8.set_xlabel(r"$t\,(s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax8.set_ylabel(r"$\phi\,(^{\circ})$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax8.tick_params(labelsize=LABELSIZE)
+    # fig1.tight_layout()
+    fig8.savefig(folder + "roll_vs_t.pdf", format='pdf')
+
+    fig9 = plt.figure()
+    ax9 = fig9.add_subplot(111)
+    ax9.plot(est_time_downsampled, est_pitch, label="Est", color=colors[0],  linewidth=1, zorder=2)
+    ax9.plot(ref_time_downsampled, gt_pitch, label="GT", color='black', linewidth=0.5, zorder=3)
+    ax9.set_xlabel(r"$t\,(s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax9.set_ylabel(r"$\theta\,(^{\circ})$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax9.tick_params(labelsize=LABELSIZE)
+    # fig1.tight_layout()
+    fig9.savefig(folder + "pitch_vs_t.pdf", format='pdf')
+
+    fig10 = plt.figure()
+    ax10 = fig10.add_subplot(111)
+    ax10.plot(est_time_downsampled, est_yaw, label="Est", color=colors[0],  linewidth=1, zorder=2)
+    ax10.plot(ref_time_downsampled, gt_yaw, label="GT", color='black', linewidth=0.5, zorder=3)
+    ax10.set_xlabel(r"$t\,(s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax10.set_ylabel(r"$\psi\,(^{\circ})$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax10.tick_params(labelsize=LABELSIZE)
+    # fig1.tight_layout()
+    fig10.savefig(folder + "yaw_vs_t.pdf", format='pdf')
+
+
+    """
+    Performance plots 
+    """
+    table["Est Times"] = est_time_downsampled
+    table["GT Times"] = ref_time_downsampled
+    table["gt_x"] = gt_x
+    table["gt_y"] = gt_y
+    table["gt_z"] = gt_z
+    table["est_x"] = est_x
+    table["est_y"] = est_y
+    table["est_z"] = est_z
+    table["Est Traj"] = traj_est
+    table["GT Traj"] = traj_ref
+    table["Est Aligned Traj"] = traj_est_aligned
+    table["GT quaterions MAP"] = gt_orientations_MAP
+    table["Est aligned quaterions MAP"] = est_aligned_orientations_MAP
+    table["Est quaterions MAP"] = est_orientations_MAP
+
+    # # APE
+    pose_relation = metrics.PoseRelation.translation_part
+    use_aligned_trajectories = False
+
+    if use_aligned_trajectories:
+        data = (traj_ref, traj_est_aligned) 
+    else:
+        data = (traj_ref, traj_est)
+
+    ape_metric = metrics.APE(pose_relation)
+    ape_metric.process_data(data)
+
+    ape_stat = ape_metric.get_statistic(metrics.StatisticsType.rmse)
+    # print(ape_stat)
+
+    ape_stats = ape_metric.get_all_statistics()
+    # pprint.pprint(ape_stats)
+
+    # seconds_from_start = [t - traj_est.timestamps[0] for t in traj_est.timestamps]
+    fig_ape = plt.figure()
+    ax_ape = fig_ape.add_subplot(111)
+    ax_ape.plot(est_time_downsampled, ape_metric.error, label="APE", color=colors[0],  linewidth=1, zorder=2)
+    ax_ape.set_xlabel(r"$t\,(s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax_ape.set_ylabel(r"APE $\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax_ape.tick_params(labelsize=LABELSIZE)
+    # fig_ape.tight_layout()
+
+    table["APE"] = ape_metric.error
+    table["Mean APE"] = ape_stats["mean"]
+    table["Median APE"] = ape_stats["median"]
+    table["Std APE"] = ape_stats["std"]
+    table["Min APE"] = ape_stats["min"]
+    table["Max APE"] = ape_stats["max"]
+    table["RMSE APE"] = ape_stats["rmse"]
+
+    ax_ape.axhspan(
+                   ape_stats["mean"] - ape_stats["std"]/2,
+                   ape_stats["mean"] + ape_stats["std"]/2,
+                    color='grey',
+                    alpha=0.5
+                )
+    ax_ape.axhline(ape_stats["mean"], color=colors[8], linestyle='--', label='mean', zorder=4)
+    ax_ape.axhline(ape_stats["rmse"], color=colors[5], linestyle='--', label='rmse', zorder=4)
+    ax_ape.axhline(ape_stats["median"], color=colors[3], linestyle='--', label='median', zorder=4)
+    ax_ape.legend(loc="upper left", ncol=4, fontsize=LABELSIZE)
+
+    fig_ape.savefig(folder + "ape_vs_t.pdf", format='pdf')
+
+
+    # # RPE
+    pose_relation = metrics.PoseRelation.rotation_angle_deg
+
+    # normal mode
+    delta = 1
+    delta_unit = Unit.frames
+
+    # all pairs mode
+    all_pairs = False  # activate
+
+    data = (traj_ref, traj_est_aligned)
+
+
+    rpe_metric = metrics.RPE(pose_relation=pose_relation, delta=delta, delta_unit=delta_unit, all_pairs=all_pairs)
+    rpe_metric.process_data(data)
+
+    rpe_stat = rpe_metric.get_statistic(metrics.StatisticsType.rmse)
+    # print(rpe_stat)
+
+    rpe_stats = rpe_metric.get_all_statistics()
+    # pprint.pprint(rpe_stats)
+
+    
+
+    fig_rpe = plt.figure()
+    ax_rpe = fig_rpe.add_subplot(111)
+    ax_rpe.plot(est_time_downsampled[:-1], rpe_metric.error, label="RPE", color=colors[0],  linewidth=1, zorder=2)
+    ax_rpe.set_xlabel(r"$t\,(s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax_rpe.set_ylabel(r"RPE $\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax_rpe.tick_params(labelsize=LABELSIZE)
+    # fig_rpe.tight_layout()
+
+    table["RPE"] = rpe_metric.error
+    table["Mean RPE"] = rpe_stats["mean"]
+    table["Median RPE"] = rpe_stats["median"]
+    table["Std RPE"] = rpe_stats["std"]
+    table["Min RPE"] = rpe_stats["min"]
+    table["Max RPE"] = rpe_stats["max"]
+    table["RMSE RPE"] = rpe_stats["rmse"]
+
+    ax_rpe.axhspan(
+                   rpe_stats["mean"] - rpe_stats["std"]/2,
+                   rpe_stats["mean"] + rpe_stats["std"]/2,
+                    color='grey',
+                    alpha=0.5
+                )
+    ax_rpe.axhline(rpe_stats["mean"], color=colors[8], linestyle='--', label='mean', zorder=4)
+    ax_rpe.axhline(rpe_stats["rmse"], color=colors[5], linestyle='--', label='rmse', zorder=4)
+    ax_rpe.axhline(rpe_stats["median"], color=colors[3], linestyle='--', label='median', zorder=4)
+    ax_rpe.legend(loc="upper left", ncol=4, fontsize=LABELSIZE)
+
+    fig_rpe.savefig(folder + "rpe_vs_t.pdf", format='pdf')
+    # plot.error_array(fig_rpe.gca(), rpe_metric.error, x_array=est_time_downsampled[:-1],
+    #                  statistics={s:v for s,v in rpe_stats.items() if s != "sse"},
+    #                  name="RPE", title="RPE w.r.t. " + rpe_metric.pose_relation.value, xlabel="$t$ (s)")
+
+
+
     if show_plot:
         plt.show()  
+
+    plt.close()
+
+    
+
 
     return table
 
 
 def main():
-    import argparse
+    
     parser = argparse.ArgumentParser(description="Compute visual shakiness and tracking error.")
     parser.add_argument("folder", help="Path to directory with sequential images")
     args = parser.parse_args()
