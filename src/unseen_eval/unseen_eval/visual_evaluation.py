@@ -36,7 +36,7 @@ def blur_index_freq(img, cutoff=0.15):
 
 
 def extract_motions(images, plot_matches=False):
-    orb = cv2.ORB_create(2000)
+    orb = cv2.ORB_create(600)
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
     motions = []
     residuals = []
@@ -46,11 +46,17 @@ def extract_motions(images, plot_matches=False):
     blur_vlap = []
     blur_freq = []
     H, W = images[0].shape
-    print(W, H)
+    # print(W, H)
     
+    n_matches = []
+    n_features_in_frame_0 = []
+    n_features_in_frame_1 = []
     for i in range(len(images) - 1):
         kp1, des1 = orb.detectAndCompute(images[i], None)
         kp2, des2 = orb.detectAndCompute(images[i + 1], None)
+
+        n_features_in_frame_0.append(len(kp1))
+        n_features_in_frame_1.append(len(kp2))
         if des1 is None or des2 is None:
             motions.append(np.zeros(3))
             residuals.append(0)
@@ -62,8 +68,10 @@ def extract_motions(images, plot_matches=False):
             residuals.append(0)
             continue
 
+        n_matches.append(len(matches))
+
         if plot_matches:
-            img_match = cv2.drawMatches(images[i],kp1,images[i + 1],kp2,matches,None,flags=cv2.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS)
+            img_match = cv2.drawMatches(images[i],kp1,images[i + 1],kp2,matches,None,flags=cv2.DRAW_MATCHES_FLAGS_DEFAULT)
             cv2.imshow("Matches", img_match)
             if cv2.waitKey(1) == ord('q'):
                 break
@@ -125,13 +133,21 @@ def extract_motions(images, plot_matches=False):
             sig = detrend(trans[valid,i])
             f, Pxx = welch(sig, fs=6.0, nperseg=nperseg)
             psd[name] = (f, Pxx)
+
+
+
+    # TODO: Plot features, plot matches and residuals
+    
     return {
         "wobble_index": np.array(wobble),
         "blur_varlap": np.array(blur_vlap),
         "blur_freq_ratio": np.array(blur_freq),
         "transforms": trans,
         "psd": psd,
-        "residuals": np.array(residuals)
+        "residuals": np.array(residuals), 
+        "n_matches": np.array(n_matches),
+        "n_features_in_frame_0": np.array(n_features_in_frame_0),
+        "n_features_in_frame_1": np.array(n_features_in_frame_1)
     }
 
 
@@ -144,10 +160,32 @@ def compute_shakiness(motions, fps=30.0, cutoff=2.0):
     return rms
 
 
+def read_map_points(filepath: str) -> int:
+    """Reads the number of map points from a file."""
+    
+    if not os.path.exists(filepath):
+        return 0
+
+    with open(filepath, "r") as f:
+        lines = f.readlines()
+
+    return len(lines)
+
+
 def analyze_sequence(folder): 
     images = load_images(folder)
     print(f"Loaded {len(images)} frames.")
     res_dict = extract_motions(images)
+
+    res_dict["mean wobble"] = np.mean(res_dict["wobble_index"])
+    res_dict["mean blur varlap"] = np.mean(res_dict["blur_varlap"])
+    res_dict["mean blur freq ratio"] = np.mean(res_dict["blur_freq_ratio"])
+    res_dict["median tracking residual"] = np.median(res_dict["residuals"])
+    res_dict["p95 tracking residual"] = np.percentile(res_dict["residuals"],95)
+    res_dict["mean n matches"] = np.mean(res_dict["n_matches"])
+    res_dict["mean n features in frame 0"] = np.mean(res_dict["n_features_in_frame_0"])
+    res_dict["mean n features in frame 1"] = np.mean(res_dict["n_features_in_frame_1"])
+    res_dict["n map points"] = read_map_points(os.path.join(folder, "../map_orb_slam3.txt"))
 
     return res_dict
 
@@ -155,7 +193,7 @@ def analyze_sequence(folder):
 def main(folder):
     images = load_images(folder)
     print(f"Loaded {len(images)} frames.")
-    res_dict = extract_motions(images)
+    res_dict = extract_motions(images, plot_matches=True)
     # J_vis = compute_shakiness(motions)
     # print(f"Visual shakiness (RMS residual angle, deg): {np.degrees(J_vis):.3f}")
     print(f"Mean wobble : {np.mean(res_dict['wobble_index']):.3f}")

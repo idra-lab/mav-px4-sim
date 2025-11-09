@@ -19,6 +19,9 @@ from evo.core.trajectory import PoseTrajectory3D
 
 import numpy as np
 
+import pickle
+
+
 
 import evo.main_ape as main_ape
 import evo.common_ape_rpe as common
@@ -50,12 +53,26 @@ import matplotlib.pyplot as plt
 from scipy.signal import welch, detrend
 
 import sys
+import scipy.spatial.transform as TF
+import argparse
+
+import pandas as pd
+
+
+import yaml
 
 
 
 FONTSIZE = 15
 LABELPADS = 5
 LABELSIZE = 10
+
+
+r_CAM_DRONE = TF.Rotation.from_matrix(np.array([[0.0000000, -1.0000000,  0.0000000],
+                                                [0.0000000,  0.0000000, -1.0000000],
+                                                [1.0000000,  0.0000000,  0.0000000]]))
+
+r_DRONE_CAM = r_CAM_DRONE.inv()
 
 
 

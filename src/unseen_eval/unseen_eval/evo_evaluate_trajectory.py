@@ -50,31 +50,17 @@ def create_table_and_plots(folder, show_plot=False):
     traj_est = file_interface.read_tum_trajectory_file(folder + "camera_orb_slam3_fixed.txt")
     traj_ref, traj_est = sync.associate_trajectories(traj_ref, traj_est)
 
+    traj_ref = remove_duplicates(traj_ref)
+    traj_est = remove_duplicates(traj_est)
+
     traj_ref.downsample(N_points)
     traj_est.downsample(N_points)
 
-    traj_ref = remove_duplicates(traj_ref)
-    traj_est = remove_duplicates(traj_est)
 
 
     ref_positions = traj_ref.positions_xyz
     est_positions = traj_est.positions_xyz
 
-    # smoothed_ref_positions = savgol_filter(ref_positions, 10500, 3, axis=0)
-    # smoothed_est_positions = savgol_filter(est_positions, 10500, 3, axis=0)
-
-
-    # ref_positions_spline = make_interp_spline(traj_ref.timestamps, traj_ref.positions_xyz, k=3, axis=0)
-    # est_positions_spline = make_interp_spline(traj_est.timestamps, traj_est.positions_xyz, k=3, axis=0)
-
-    # ref_positions_resampled = ref_positions_spline(traj_ref.timestamps)
-    # est_positions_resampled = est_positions_spline(traj_est.timestamps)
-
-    # ref_speeds_spline = ref_positions_spline.derivative(1)
-    # est_speeds_spline = est_positions_spline.derivative(1)
-
-    # ref_speeds = ref_speeds_spline(traj_est.timestamps)
-    # est_speeds = est_speeds_spline(traj_est.timestamps)
 
     table["GT Travelled Distance"] = traj_ref.path_length
     table["Est Travelled Distance"] = traj_est.path_length
@@ -201,6 +187,8 @@ def create_table_and_plots(folder, show_plot=False):
 
 
     traj_est_aligned = copy.deepcopy(traj_est)
+
+    
     traj_est_aligned.align(traj_ref, correct_scale=False, correct_only_scale=False)
 
     est_positions_aligned = traj_est_aligned.positions_xyz

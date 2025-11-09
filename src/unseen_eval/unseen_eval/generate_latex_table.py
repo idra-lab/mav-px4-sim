@@ -83,6 +83,7 @@ def store_csv_table(table: dict, filepath: str):
 
 
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate LaTeX table from evaluation results.")
     parser.add_argument("input_file", type=str, help="Path to the input evaluation table file.")

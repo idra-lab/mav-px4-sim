@@ -4,7 +4,6 @@ from unseen_eval.unseen_eval_lib import *
 from unseen_eval.evo_evaluate_trajectory import create_table_and_plots
 from unseen_eval.visual_evaluation import analyze_sequence
 
-import yaml
 
 def save_table(table: dict, filepath: str):
     """Saves the evaluation table to a text file."""
@@ -39,7 +38,9 @@ def evaluate_evo_and_vision(config_file: str):
     summary_dict = {}
 
     for run in os.listdir(dataset_folder):
+
         run_path = os.path.join(dataset_folder, run + "/")
+
         if not os.path.isdir(run_path):
             continue
 
@@ -74,12 +75,14 @@ def evaluate_evo_and_vision(config_file: str):
 
             short_results = {k: v for k, v in combined_results.items() if k in summary_metrics_names}
 
-            # print(short_results)
+            
 
             summary_dict[run] = short_results
-            # print(summary_dict)
+            
         except Exception as e:
+
             print(f"Error processing run {run}: {e}")
+
             continue
 
     # Save summary
