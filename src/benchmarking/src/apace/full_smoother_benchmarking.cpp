@@ -29,7 +29,8 @@ FullSmootherBenchmarkingNode::FullSmootherBenchmarkingNode() : Node("full_smooth
     std::string map_path = this->get_parameter("map_path").as_string();
     
     // RCLCPP_INFO(this->get_logger(), "NOT LOADING THE MAP");
-    this->loadMap(map_path);
+    // this->loadMap(map_path);
+    this->loadMapFromPCL(map_path);
     RCLCPP_INFO(this->get_logger(), "Full Smoother Benchmarking Node started.");
 
     

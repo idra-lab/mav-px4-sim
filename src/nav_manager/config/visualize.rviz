@@ -7,12 +7,16 @@ Panels:
         - /Global Options1
         - /Status1
         - /Pose1
-        - /Marker1
-        - /Marker1/Topic1
-        - /Path1
+        - /Obstacles Marker1
         - /Path2
+        - /Uncertain Octomap1
+        - /MarkerArray1
+        - /MarkerArray1/Topic1
+        - /Marker2
+        - /Marker2/Status1
+        - /Marker2/Topic1
       Splitter Ratio: 0.5
-    Tree Height: 907
+    Tree Height: 379
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -62,6 +66,7 @@ Visualization Manager:
       Topic:
         Depth: 5
         Durability Policy: Volatile
+        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /px4_visualizer/vehicle_pose
@@ -74,6 +79,7 @@ Visualization Manager:
       Topic:
         Depth: 5
         Durability Policy: Volatile
+        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /px4_visualizer/vehicle_velocity
@@ -82,12 +88,13 @@ Visualization Manager:
       Enabled: true
       Name: Obstacles Marker
       Namespaces:
-        arrow: false
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
+        Filter size: 10
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: System Default
         Value: /obstacles_marker
       Value: true
     - Alpha: 1
@@ -113,13 +120,14 @@ Visualization Manager:
       Topic:
         Depth: 5
         Durability Policy: Volatile
+        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /px4_visualizer/vehicle_path
       Value: true
-    - Class: rviz_default_plugins/Path
-      Alpha: 1
+    - Alpha: 1
       Buffer Length: 1000
+      Class: rviz_default_plugins/Path
       Color: 25; 0; 255
       Enabled: true
       Head Diameter: 0.30000001192092896
@@ -140,13 +148,14 @@ Visualization Manager:
       Topic:
         Depth: 5
         Durability Policy: Volatile
+        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /px4_visualizer/setpoint_path
       Value: true
-    - Class: rviz_default_plugins/Path
-      Alpha: 1
+    - Alpha: 1
       Buffer Length: 1
+      Class: rviz_default_plugins/Path
       Color: 97; 53; 131
       Enabled: true
       Head Diameter: 0.30000001192092896
@@ -161,11 +170,13 @@ Visualization Manager:
         Z: 0
       Pose Color: 255; 85; 255
       Pose Style: Axes
-      Length: 0.3
-      Radius: 0.03
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
       Topic:
         Depth: 1
         Durability Policy: Volatile
+        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /drone_path
@@ -175,75 +186,41 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        # base_link:
-        #   Value: true
-        # camera_accel_frame:
-        #   Value: true
-        # camera_accel_optical_frame:
-        #   Value: true
-        # camera_bottom_screw_frame:
-        #   Value: true
-        # camera_color_frame:
-        #   Value: true
-        # camera_color_optical_frame:
-        #   Value: true
-        # camera_depth_frame:
-        #   Value: true
-        # camera_depth_optical_frame:
-        #   Value: true
-        # camera_gyro_frame:
-        #   Value: true
-        # camera_gyro_optical_frame:
-        #   Value: true
-        # camera_imu_optical_frame:
-        #   Value: true
-        # camera_infra1_frame:
-        #   Value: true
-        # camera_infra1_optical_frame:
-        #   Value: true
-        # camera_infra2_frame:
-        #   Value: true
-        # camera_infra2_optical_frame:
-        #   Value: true
-        # camera_link:
-        #   Value: true
-        # camera_usb_plug_link:
-        #   Value: true
+        camera_color_optical_frame:
+          Value: true
+        drone:
+          Value: true
+        initial_pose_map:
+          Value: true
+        map:
+          Value: true
+        slam_map:
+          Value: true
+        x500_realsense/realsense_d435/base_link/realsense_d435:
+          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: false
-      # Tree:
-      #   base_link:
-      #     camera_bottom_screw_frame:
-      #       camera_link:
-      #         camera_accel_frame:
-      #           camera_accel_optical_frame:
-      #             {}
-      #         camera_color_frame:
-      #           camera_color_optical_frame:
-      #             {}
-      #         camera_depth_frame:
-      #           camera_depth_optical_frame:
-      #             {}
-      #         camera_gyro_frame:
-      #           camera_gyro_optical_frame:
-      #             camera_imu_optical_frame:
-      #               {}
-      #         camera_infra1_frame:
-      #           camera_infra1_optical_frame:
-      #             {}
-      #         camera_infra2_frame:
-      #           camera_infra2_optical_frame:
-      #             {}
-      #         camera_usb_plug_link:
-      #           {}
+      Tree:
+        map:
+          drone:
+            {}
+          initial_pose_map:
+            slam_map:
+              camera_color_optical_frame:
+                x500_realsense/realsense_d435/base_link/realsense_d435:
+                  {}
       Update Interval: 0
       Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
       Name: Camera Image
+      Normalize Range: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -253,57 +230,315 @@ Visualization Manager:
       Value: true
     - Class: octomap_rviz_plugins/OccupancyGrid
       Enabled: true
+      Max. Height Display: 70
+      Max. Octree Depth: 16
+      Min. Height Display: -4
       Name: Uncertain Octomap
       Topic:
         Depth: 5
         Durability Policy: Volatile
+        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /octomap_full
-      Voxel Rendering: Occupied Voxels
-      Voxel Coloring: Z-Axis
-      Voxel Alpha: 1.0
-      Max. Octree Depth: 16
-      Max. Height Display: 70
-      Min. Height Display: -4
       Value: true
+      Voxel Alpha: 1
+      Voxel Coloring: Z-Axis
+      Voxel Rendering: Occupied Voxels
     - Class: UncertainPointCloud
       Enabled: false
       Name: UncertainPointCloud
-      Topic: 
+      Topic:
         Depth: 1
         Durability Policy: Volatile
+        Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /slam/uncertain_point_cloud
+      Value: false
     - Class: rviz_default_plugins/Image
       Enabled: true
+      Max Value: 100
+      Median window: 5
+      Min Value: -10
       Name: Depth Image
+      Normalize Range: false
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /x500_realsense/depth_image
-      Normalize Range: false
-      Min Value: -10
-      Max Value: 100
       Value: true
-    - Class: rviz_default_plugins/PointCloud2
-      Enabled: false
-      Name: PointCloud
-      Style: Spheres
-      Alpha: 0.5
-      Color Transformer: "AxisColor"
+    - Alpha: 0.5
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
       Axis: X
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: AxisColor
       Decay Time: 10
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: PointCloud
+      Position Transformer: ""
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.009999999776482582
+      Style: Spheres
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /px4_visualizer/pointcloud
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        point0: true
+        point1: true
+        point10: true
+        point100: true
+        point101: true
+        point102: true
+        point103: true
+        point104: true
+        point105: true
+        point106: true
+        point107: true
+        point108: true
+        point109: true
+        point11: true
+        point110: true
+        point111: true
+        point112: true
+        point113: true
+        point114: true
+        point115: true
+        point116: true
+        point117: true
+        point118: true
+        point119: true
+        point12: true
+        point120: true
+        point121: true
+        point122: true
+        point123: true
+        point124: true
+        point125: true
+        point126: true
+        point127: true
+        point128: true
+        point129: true
+        point13: true
+        point130: true
+        point131: true
+        point132: true
+        point133: true
+        point134: true
+        point135: true
+        point136: true
+        point137: true
+        point138: true
+        point139: true
+        point14: true
+        point140: true
+        point141: true
+        point142: true
+        point143: true
+        point144: true
+        point145: true
+        point146: true
+        point147: true
+        point148: true
+        point149: true
+        point15: true
+        point150: true
+        point151: true
+        point152: true
+        point153: true
+        point154: true
+        point155: true
+        point156: true
+        point157: true
+        point158: true
+        point159: true
+        point16: true
+        point160: true
+        point161: true
+        point162: true
+        point163: true
+        point164: true
+        point165: true
+        point166: true
+        point167: true
+        point168: true
+        point169: true
+        point17: true
+        point170: true
+        point171: true
+        point172: true
+        point173: true
+        point174: true
+        point175: true
+        point176: true
+        point177: true
+        point178: true
+        point179: true
+        point18: true
+        point180: true
+        point181: true
+        point182: true
+        point183: true
+        point184: true
+        point185: true
+        point186: true
+        point187: true
+        point188: true
+        point189: true
+        point19: true
+        point190: true
+        point191: true
+        point192: true
+        point193: true
+        point194: true
+        point195: true
+        point196: true
+        point197: true
+        point198: true
+        point199: true
+        point2: true
+        point20: true
+        point21: true
+        point22: true
+        point23: true
+        point24: true
+        point25: true
+        point26: true
+        point27: true
+        point28: true
+        point29: true
+        point3: true
+        point30: true
+        point31: true
+        point32: true
+        point33: true
+        point34: true
+        point35: true
+        point36: true
+        point37: true
+        point38: true
+        point39: true
+        point4: true
+        point40: true
+        point41: true
+        point42: true
+        point43: true
+        point44: true
+        point45: true
+        point46: true
+        point47: true
+        point48: true
+        point49: true
+        point5: true
+        point50: true
+        point51: true
+        point52: true
+        point53: true
+        point54: true
+        point55: true
+        point56: true
+        point57: true
+        point58: true
+        point59: true
+        point6: true
+        point60: true
+        point61: true
+        point62: true
+        point63: true
+        point64: true
+        point65: true
+        point66: true
+        point67: true
+        point68: true
+        point69: true
+        point7: true
+        point70: true
+        point71: true
+        point72: true
+        point73: true
+        point74: true
+        point75: true
+        point76: true
+        point77: true
+        point78: true
+        point79: true
+        point8: true
+        point80: true
+        point81: true
+        point82: true
+        point83: true
+        point84: true
+        point85: true
+        point86: true
+        point87: true
+        point88: true
+        point89: true
+        point9: true
+        point90: true
+        point91: true
+        point92: true
+        point93: true
+        point94: true
+        point95: true
+        point96: true
+        point97: true
+        point98: true
+        point99: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: System Default
+        Value: /spline_markers
+      Value: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Marker
+      Namespaces:
+        octomap_cubes: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /octomap_cubes
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /px4_visualizer/pointcloud
-        Style: Points
+        Value: /octomap_cubes_array
       Value: true
   Enabled: true
   Global Options:
@@ -320,6 +555,9 @@ Visualization Manager:
     - Class: rviz_default_plugins/Measure
       Line color: 128; 128; 0
     - Class: rviz_default_plugins/SetInitialPose
+      Covariance x: 0.25
+      Covariance y: 0.25
+      Covariance yaw: 0.06853891909122467
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -348,39 +586,43 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 24.51659393310547
+      Distance: 31.963027954101562
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
+        X: -0.7017943859100342
+        Y: 0.7706373333930969
+        Z: -0.31966373324394226
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.795397937297821
+      Pitch: 1.1153974533081055
       Target Frame: drone
       Value: Orbit (rviz)
-      Yaw: 0.6553981304168701
+      Yaw: 1.4153999090194702
     Saved: ~
 Window Geometry:
+  Camera Image:
+    collapsed: false
+  Depth Image:
+    collapsed: false
   Displays:
-    collapsed: true
+    collapsed: false
   Height: 1136
-  Hide Left Dock: true
+  Hide Left Dock: false
   Hide Right Dock: true
-  QMainWindow State: 000000ff00000000fd00000004000000000000028e00000416fc0200000008fb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073000000003d00000416000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261000000010000010f000002f4fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d000002f4000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004420000003efc0100000002fb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d006501000000000000045000000000000000000000039c0000041600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000028e00000416fc020000000afb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003d00000206000000c900fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000160044006500700074006800200049006d0061006700650100000249000001020000002800fffffffb0000001800430061006d00650072006100200049006d0061006700650100000351000001020000002800ffffff000000010000010f000002f4fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003d000002f4000000a400fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000004420000003efc0100000002fb0000000800540069006d00650100000000000004420000000000000000fb0000000800540069006d00650100000000000004500000000000000000000003c50000041600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Tool Properties:
     collapsed: false
   Views:
     collapsed: true
-  Width: 924
-  X: 72
-  Y: 27
+  Width: 1625
+  X: 1098
+  Y: 91

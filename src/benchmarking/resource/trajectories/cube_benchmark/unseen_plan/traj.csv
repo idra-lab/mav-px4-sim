@@ -1,0 +1,15 @@
+,unseen_plan/est_trajectory.txt
+nr. of poses,3075.0
+path length (m),50.6477776862651
+duration (s),51.757217000000004
+t_start (s),0.60373
+t_end (s),52.360947
+v_max (m/s),19.8584310746299
+v_min (m/s),0.0
+v_avg (m/s),1.0947030677270346
+v_max (km/h),71.49035186866764
+v_min (km/h),0.0
+v_avg (km/h),3.940931043817325
+dt_max (s),0.06522999999999968
+dt_min (s),0.0068429999999999325
+dt_avg (s),0.01683709076122316

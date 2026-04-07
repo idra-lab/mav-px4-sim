@@ -59,9 +59,9 @@ def evaluate_evo_and_vision(config_file: str):
 
             # print(table)
 
-            rgb_folder = os.path.join(run_path, "rgb")
+            # rgb_folder = os.path.join(run_path, "rgb")
 
-            res_dict = analyze_sequence(rgb_folder)
+            res_dict = analyze_sequence(run_path)
 
             # print("res dict:", res_dict)
 

@@ -14,23 +14,15 @@ from launch_ros.actions import Node
 from launch.substitutions import EnvironmentVariable
 from launch.actions import OpaqueFunction
 
-from tf_transformations import quaternion_from_euler, euler_from_quaternion, quaternion_multiply, quaternion_inverse
+# from tf_transformations import quaternion_from_euler, euler_from_quaternion, quaternion_multiply, quaternion_inverse
+
+from scipy.spatial.transform import Rotation as R
+
+
 from launch.actions import TimerAction
 
 import xml.etree.ElementTree as ET
 
-def obatin_real_time_factor(world_path):
-	tree = ET.parse(world_path)
-	root = tree.getroot()
-
-	# Find the <real_time_factor> element
-	physics = root.find('.//physics')
-	if physics is not None:
-		real_time_factor = physics.find('real_time_factor')
-		if real_time_factor is not None:
-			return real_time_factor.text
-		else:
-			print("No <real_time_factor> element found.")
 
 def add_all_actions(ld, actions):
 	for action in actions:
@@ -42,7 +34,6 @@ def generate_launch_description():
 	airframe = LaunchConfiguration("airframe")
 	ddsport = LaunchConfiguration("ddsport")
 	gz_world_file = LaunchConfiguration("gz_world_file")
-	gz_world = LaunchConfiguration("gz_world")
 
 	ld = LaunchDescription()
 
@@ -55,9 +46,7 @@ def generate_launch_description():
 		'gz_world_file', default_value='medium_forest.sdf'
 	)
 	
-	gazebo_name_launch_arg = DeclareLaunchArgument(
-		'gz_world', default_value='medium_forest'
-	)
+	
   
 	ddsport_launch_arg = DeclareLaunchArgument(
 		'ddsport', default_value='8888'
@@ -65,17 +54,12 @@ def generate_launch_description():
 
 	launch_args = [airframe_launch_arg,
 					gazebo_world_launch_arg,
-					gazebo_name_launch_arg,
 					ddsport_launch_arg]
 	
 	add_all_actions(ld, launch_args)
 
 	# TODO: Add launch arguments from terminal such as airframe name and world name and set PX4_GZ_MODEL_POSE to specify the spawn position
 	
-	# set_resource_path = SetEnvironmentVariable(
-    #     name='GZ_SIM_RESOURCE_PATH',
-    #     value="/usr/share/gz/gz-sim8/"
-    # )
 
 	set_resource_path = SetEnvironmentVariable(name='GZ_SIM_RESOURCE_PATH', value=[EnvironmentVariable('GZ_SIM_RESOURCE_PATH'), ':/usr/share/gz/gz-sim8/'])
 
@@ -84,7 +68,6 @@ def generate_launch_description():
 
 	set_plugin_path = SetEnvironmentVariable(name='GZ_SIM_SYSTEM_PLUGIN_PATH',value=[EnvironmentVariable('GZ_SIM_SYSTEM_PLUGIN_PATH'), ':/opt/ros/humble/lib'])
 
-	# remove_gps = SetEnvironmentVariable(name='EKF2_GPS_CTRL', value=[EnvironmentVariable('EKF2_GPS_CTRL'), '0'])
 
 	pose_str = '0 0 0.01 0 0 0.0'
 
@@ -92,12 +75,9 @@ def generate_launch_description():
 	drone_angles = [float(x) for x in pose_str.split()[3:]]
 	drone_angles[2] -= 1.57  # Adjust yaw to match the expected orientation
 
-	drone_quat = quaternion_from_euler(
+	drone_quat = R.from_euler('xyz', drone_angles).as_quat(scalar_first=False)
+	inverse_drone_quat = R.from_quat(drone_quat).inv().as_quat()
 
-		drone_angles[0],
-		drone_angles[1],
-		drone_angles[2]
-	)
 
 	
 	set_pose = SetEnvironmentVariable(
@@ -297,7 +277,7 @@ def generate_launch_description():
         ]
     )
 
-	slam_map_quat = [-0.5, 0.5, -0.5, -0.5]
+	slam_map_quat = R.from_quat([-0.5, 0.5, -0.5, -0.5]).as_quat()
 
 	
 	rotated_map_frame_node = Node(
@@ -306,7 +286,7 @@ def generate_launch_description():
 		name='drone_pose_correction_frame_publisher',
 		arguments=[
 			'0', '0', '0',                # translation x y z
-            str(drone_quat[0]), str(drone_quat[1]), str(drone_quat[2]), str(drone_quat[3]),   # rotation in RPY (rad): -90°, 0°, -90°
+            str(drone_quat[0]), str(drone_quat[1]), str(drone_quat[2]), str(drone_quat[3]),   
             # '-0.5', '0.5', '-0.5', '-0.5',   # rotation in RPY (rad): -90°, 0°, -90°
             # '1, 0, 0, 0',   # rotation in RPY (rad): -90°, 0°, -90°
 			'map', 
@@ -315,7 +295,7 @@ def generate_launch_description():
 		output='screen'
 	)
 
-	map_to_slam = quaternion_inverse(slam_map_quat)
+	map_to_slam = R.from_quat(slam_map_quat).inv().as_quat()
 
 	slam_map_frame_node = Node(
 		package='tf2_ros',
@@ -330,13 +310,6 @@ def generate_launch_description():
 			'slam_map', 
 			],
 		output='screen'
-	)
-
-	inverse_drone_quat = quaternion_inverse(drone_quat)
-
-	total_rot = quaternion_multiply(
-		slam_map_quat,
-		inverse_drone_quat
 	)
 
 
@@ -413,7 +386,8 @@ def generate_launch_description():
 		executable='rviz2',
 		name='rviz2',
 		prefix='gnome-terminal --tab --',
-		arguments=['-d', [os.path.join(pkg_traj, 'resource/visualize.rviz')]]
+		arguments=['-d', os.path.join(pkg_traj, 'resource', 'visualize.rviz')]
+
 	)
 
 	rviz_visualization_nodes = [
@@ -437,7 +411,7 @@ def generate_launch_description():
 		name='offboard_takeoff',
 		prefix='gnome-terminal --tab --',
 		output='screen', 
-		parameters = [{'altitude': 1.5}]
+		parameters = [{'altitude': 3.0}]
 	)
 
 	takeoff_node_delay = TimerAction(

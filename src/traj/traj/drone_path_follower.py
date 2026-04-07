@@ -39,7 +39,8 @@ from rclpy.node import Node
 from rclpy.clock import Clock
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSHistoryPolicy, QoSDurabilityPolicy
 
-from tf_transformations import euler_from_quaternion, quaternion_matrix,  rotation_matrix
+# from tf_transformations import euler_from_quaternion, quaternion_matrix,  rotation_matrix
+from scipy.spatial.transform import Rotation as R
 
 from px4_msgs.msg import OffboardControlMode
 from px4_msgs.msg import TrajectorySetpoint
@@ -49,6 +50,16 @@ from px4_msgs.msg import VehicleCommand
 from nav_msgs.msg import Path
 from tf2_ros import TransformListener, Buffer
 from tf2_ros import TransformException
+
+
+def quaternion_matrix(quaternion):
+    """Return homogeneous rotation matrix from quaternion.
+
+    Similar to tf_transformations.quaternion_matrix but using scipy.spatial.transform.Rotation
+    """
+    r = R.from_quat([quaternion[0], quaternion[1], quaternion[2], quaternion[3]])
+    
+    return r.as_matrix()
 
 class DronePathFollower(Node):
 

@@ -156,7 +156,7 @@
     <!-- Textured obstacle: 1m cube with heavy texture -->
     <model name="obstacle_textured">
       <static>true</static>
-      <pose>-5 0 2.5 0 0 0</pose>
+      <pose>0 0 2.5 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><box><size>5 5 5</size></box></geometry>
@@ -177,28 +177,14 @@
                     </metal>
                 </pbr>
             </material>
-            <!-- <material>
-                <double_sided>true</double_sided>
-                <diffuse>1.0 1.0 1.0</diffuse>
-                <script>
-                    <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/pine tree/6/files/materials/scripts/</uri>
-                    <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/pine tree/6/files/materials/textures/</uri>
-                    <name>PineTree/Branch</name>
-                </script>
-                <pbr>
-                    <metal>
-                        <albedo_map>https://fuel.gazebosim.org/1.0/openrobotics/models/pine tree/6/files/materials/textures/bark_diffuse.png</albedo_map>
-                    </metal>
-                </pbr>
-            </material> -->
         </visual>
       </link>
     </model>
 
     <!-- Untextured obstacle: 1m cube with flat color -->
-    <model name="obstacle_untextured">
+    <!-- <model name="obstacle_untextured">
       <static>true</static>
-      <pose>5 0 2.5 0 0 0</pose>
+      <pose>0 6 2.5 0 0 0</pose>
       <link name="link">
         <collision name="collision">
           <geometry><box><size>5 5 5</size></box></geometry>
@@ -213,7 +199,7 @@
             </material>
         </visual>
       </link>
-    </model>
+    </model> -->
 
     <gui>
       <camera name="user_camera">

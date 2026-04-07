@@ -1,0 +1,15 @@
+,apace/est_trajectory.txt
+nr. of poses,1556.0
+path length (m),39.00957092877169
+duration (s),26.285117
+t_start (s),0.573077
+t_end (s),26.858194
+v_max (m/s),35.38834090395134
+v_min (m/s),0.0
+v_avg (m/s),1.6813594816490034
+v_max (km/h),127.39802725422481
+v_min (km/h),0.0
+v_avg (km/h),6.052894133936412
+dt_max (s),0.06633600000000006
+dt_min (s),0.006495000000001028
+dt_avg (s),0.016903612218649517

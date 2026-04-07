@@ -65,7 +65,7 @@ import yaml
 
 FONTSIZE = 15
 LABELPADS = 5
-LABELSIZE = 10
+LABELSIZE = 8
 
 
 r_CAM_DRONE = TF.Rotation.from_matrix(np.array([[0.0000000, -1.0000000,  0.0000000],

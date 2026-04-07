@@ -44,12 +44,13 @@ octomap:
   minimum_range: -1.0
   compress_map: false
   cluster_distance: 1.0
-  cluster_min: 600
+  cluster_min: 790
   cluster_max: 25000
 
 
 smoother:
-  mean_velocity: 0.5
+  # mean_velocity: 0.5
+  mean_velocity: 2.5
   num_waypoints_per_segment: 10
   horizon: 12000.0
   constraints:
@@ -60,8 +61,8 @@ smoother:
       lower_bound: [-1.6, -1.0, -1.6]
       upper_bound: [1.6, 1.0, 1.6]
     LINEAR_VELOCITY:
-      lower_bound: [-1.0, -1.0, -1.0]
-      upper_bound: [1.0, 1.0, 1.0]
+      lower_bound: [-10.0, -10.0, -10.0]
+      upper_bound: [10.0, 10.0, 10.0]
     ANGULAR_VELOCITY:
       lower_bound: [-0.2, -0.2, -0.2]
       upper_bound: [0.2, 0.2, 0.2]
@@ -69,8 +70,8 @@ smoother:
       lower_bound: [-5.0, -5.0, -5.0]
       upper_bound: [5.0, 5.0, 5.0]
     ANGULAR_ACCELERATION:
-      lower_bound: [-0.5, -0.5, -0.5]
-      upper_bound: [0.5, 0.5, 0.5]
+      lower_bound: [-5.0, -5.0, -5.0]
+      upper_bound: [5.0, 5.0, 5.0]
   cameras:
     intrinsic:
       focal_length: [1000.0, 1000.0]

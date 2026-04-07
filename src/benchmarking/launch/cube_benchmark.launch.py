@@ -458,7 +458,8 @@ def generate_launch_description():
 		parameters=[
 			{
 				'configuration_filename': os.path.join(benchmark_dir, 'config', 'cube_benchmark/launch_config.yaml'), 
-				'map_path': os.path.join(benchmark_dir, 'resource/maps/cube_benchmark', 'map_creator_file.yaml')
+				# 'map_path': os.path.join(benchmark_dir, 'resource/maps/cube_benchmark', 'map_creator_file.yaml')
+				'map_path': os.path.join(benchmark_dir, 'resource/maps/cube_benchmark', 'planned_map.pcd')
 
 			}
 		],

@@ -6,7 +6,7 @@ material tree/Bark
     {
       texture_unit
       {
-        texture wood1.jpg
+        texture materials/textures/wood1.jpg
       }
     }
   }

@@ -4,7 +4,7 @@ from unseen_eval.unseen_eval_lib import *
 
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.size'] = FONTSIZE
-plt.rcParams['figure.figsize'] = (3.3, 2.5)
+plt.rcParams['figure.figsize'] = (5.0, 2.5)
 plt.rcParams['figure.dpi'] = 600
 plt.style.use('_mpl-gallery')
 
@@ -446,9 +446,16 @@ def create_table_and_plots(folder, show_plot=False):
     table["Est quaterions MAP"] = est_orientations_MAP
 
     # # APE
-    pose_relation = metrics.PoseRelation.translation_part
-    use_aligned_trajectories = False
+    pose_relation = metrics.PoseRelation.full_transformation
+    use_aligned_trajectories = True
 
+    traj_ref = file_interface.read_tum_trajectory_file(folder + "groundtruth_rotated.txt")
+    traj_est = file_interface.read_tum_trajectory_file(folder + "camera_orb_slam3_fixed.txt")
+    traj_ref, traj_est = sync.associate_trajectories(traj_ref, traj_est, max_diff=0.01)
+
+    traj_est_aligned = copy.deepcopy(traj_est)
+    # traj_est_aligned.align(traj_ref) #, correct_scale=False, correct_only_scale=False, n=60)
+    traj_est_aligned.align_origin(traj_ref)
     if use_aligned_trajectories:
         data = (traj_ref, traj_est_aligned) 
     else:
@@ -456,6 +463,8 @@ def create_table_and_plots(folder, show_plot=False):
 
     ape_metric = metrics.APE(pose_relation)
     ape_metric.process_data(data)
+
+    ape_times = np.linspace(0, est_time_downsampled[-1], len(ape_metric.error))
 
     ape_stat = ape_metric.get_statistic(metrics.StatisticsType.rmse)
     # print(ape_stat)
@@ -466,9 +475,12 @@ def create_table_and_plots(folder, show_plot=False):
     # seconds_from_start = [t - traj_est.timestamps[0] for t in traj_est.timestamps]
     fig_ape = plt.figure()
     ax_ape = fig_ape.add_subplot(111)
-    ax_ape.plot(est_time_downsampled, ape_metric.error, label="APE", color=colors[0],  linewidth=1, zorder=2)
+    # ax_ape.plot(est_time_downsampled, ape_metric.error, label="APE", color=colors[0],  linewidth=1, zorder=2)
+    ax_ape.plot(ape_times, ape_metric.error, color=colors[0],  linewidth=1, zorder=2)
     ax_ape.set_xlabel(r"$t\,(s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
     ax_ape.set_ylabel(r"APE $\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax_ape.set_xlim(left=0)
+    ax_ape.set_ylim(bottom=0)
     ax_ape.tick_params(labelsize=LABELSIZE)
     # fig_ape.tight_layout()
 
@@ -486,23 +498,26 @@ def create_table_and_plots(folder, show_plot=False):
                     color='grey',
                     alpha=0.5
                 )
-    ax_ape.axhline(ape_stats["mean"], color=colors[8], linestyle='--', label='mean', zorder=4)
-    ax_ape.axhline(ape_stats["rmse"], color=colors[5], linestyle='--', label='rmse', zorder=4)
-    ax_ape.axhline(ape_stats["median"], color=colors[3], linestyle='--', label='median', zorder=4)
-    ax_ape.legend(loc="upper left", ncol=4, fontsize=LABELSIZE)
+    ax_ape.axhline(ape_stats["mean"], color=colors[8], linestyle='--', label='Mean', zorder=4)
+    ax_ape.axhline(ape_stats["rmse"], color=colors[5], linestyle='--', label='RMSE', zorder=4)
+    ax_ape.axhline(ape_stats["median"], color=colors[3], linestyle='--', label='Med.', zorder=4)
+    ax_ape.legend(loc="lower right", ncol=1, fontsize=LABELSIZE)
 
     fig_ape.savefig(folder + "ape_vs_t.pdf", format='pdf')
 
 
     # # RPE
-    pose_relation = metrics.PoseRelation.rotation_angle_deg
+    pose_relation = metrics.PoseRelation.full_transformation
 
     # normal mode
-    delta = 1
-    delta_unit = Unit.frames
+    delta = 1.0
+    delta_unit = Unit.meters
 
     # all pairs mode
-    all_pairs = False  # activate
+    all_pairs = True  # activate
+
+    traj_est_aligned = copy.deepcopy(traj_est)
+    traj_est_aligned.align(traj_ref,  correct_scale=False, correct_only_scale=False, n=60)
 
     data = (traj_ref, traj_est_aligned)
 
@@ -516,13 +531,16 @@ def create_table_and_plots(folder, show_plot=False):
     rpe_stats = rpe_metric.get_all_statistics()
     # pprint.pprint(rpe_stats)
 
-    
+    rpe_times = np.linspace(0, est_time_downsampled[-1], len(rpe_metric.error))
 
     fig_rpe = plt.figure()
     ax_rpe = fig_rpe.add_subplot(111)
-    ax_rpe.plot(est_time_downsampled[:-1], rpe_metric.error, label="RPE", color=colors[0],  linewidth=1, zorder=2)
+    # ax_rpe.plot(est_time_downsampled[:-1], rpe_metric.error, label="RPE", color=colors[0],  linewidth=1, zorder=2)
+    ax_rpe.plot(rpe_times, rpe_metric.error, color=colors[0],  linewidth=1, zorder=2)
     ax_rpe.set_xlabel(r"$t\,(s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
     ax_rpe.set_ylabel(r"RPE $\,(m)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax_rpe.set_xlim(left=0)
+    ax_rpe.set_ylim(bottom=0)
     ax_rpe.tick_params(labelsize=LABELSIZE)
     # fig_rpe.tight_layout()
 
@@ -540,10 +558,10 @@ def create_table_and_plots(folder, show_plot=False):
                     color='grey',
                     alpha=0.5
                 )
-    ax_rpe.axhline(rpe_stats["mean"], color=colors[8], linestyle='--', label='mean', zorder=4)
-    ax_rpe.axhline(rpe_stats["rmse"], color=colors[5], linestyle='--', label='rmse', zorder=4)
-    ax_rpe.axhline(rpe_stats["median"], color=colors[3], linestyle='--', label='median', zorder=4)
-    ax_rpe.legend(loc="upper left", ncol=4, fontsize=LABELSIZE)
+    ax_rpe.axhline(rpe_stats["mean"], color=colors[8], linestyle='--', label='Mean', zorder=4)
+    ax_rpe.axhline(rpe_stats["rmse"], color=colors[5], linestyle='--', label='RMSE', zorder=4)
+    ax_rpe.axhline(rpe_stats["median"], color=colors[3], linestyle='--', label='Med.', zorder=4)
+    ax_rpe.legend(loc="best", ncol=1, fontsize=LABELSIZE)
 
     fig_rpe.savefig(folder + "rpe_vs_t.pdf", format='pdf')
     # plot.error_array(fig_rpe.gca(), rpe_metric.error, x_array=est_time_downsampled[:-1],

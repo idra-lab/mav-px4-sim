@@ -1,5 +1,12 @@
 from unseen_eval.unseen_eval_lib import *
 
+
+plt.rcParams['text.usetex'] = True
+plt.rcParams['font.size'] = FONTSIZE
+plt.rcParams['figure.figsize'] = (5.0, 2.5)
+plt.rcParams['figure.dpi'] = 600
+plt.style.use('_mpl-gallery')
+
 def load_images(folder):
     exts = ('*.png', '*.jpg', '*.jpeg', '*.bmp')
     files = []
@@ -45,9 +52,8 @@ def extract_motions(images, plot_matches=False):
     wobble = []
     blur_vlap = []
     blur_freq = []
-    H, W = images[0].shape
-    # print(W, H)
-    
+    H, W = images[0].shape[:2]
+
     n_matches = []
     n_features_in_frame_0 = []
     n_features_in_frame_1 = []
@@ -71,7 +77,20 @@ def extract_motions(images, plot_matches=False):
         n_matches.append(len(matches))
 
         if plot_matches:
-            img_match = cv2.drawMatches(images[i],kp1,images[i + 1],kp2,matches,None,flags=cv2.DRAW_MATCHES_FLAGS_DEFAULT)
+            multiplier = int(4)
+
+
+            new_H = int(H * multiplier)
+            
+            new_W = int(W * multiplier)
+
+            img_0 = cv2.resize(images[i], (new_W, new_H), interpolation=cv2.INTER_CUBIC)
+            img_1 = cv2.resize(images[i + 1], (new_W, new_H), interpolation=cv2.INTER_CUBIC)
+            kp1_mult = [cv2.KeyPoint(x=kp.pt[0]*multiplier, y=kp.pt[1]*multiplier, size=kp.size*multiplier) for kp in kp1]
+            kp2_mult = [cv2.KeyPoint(x=kp.pt[0]*multiplier, y=kp.pt[1]*multiplier, size=kp.size*multiplier) for kp in kp2]
+
+            img_match = cv2.drawMatches(img_0,kp1_mult,img_1,kp2_mult,matches,None, matchColor=(0,255,0), matchesThickness=1, singlePointColor=(255,255,255),  flags=cv2.DRAW_MATCHES_FLAGS_DEFAULT)
+            cv2.imwrite(f"src/unseen_eval/resource/results/match_{i:03d}.png", img_match)
             cv2.imshow("Matches", img_match)
             if cv2.waitKey(1) == ord('q'):
                 break
@@ -108,9 +127,9 @@ def extract_motions(images, plot_matches=False):
         # Compute per-match residual = Euclidean distance between observed and predicted flow.
         # Since no depth, use rotation+translation to estimate flow direction via epipolar constraint.
 
-        H, _ = cv2.findHomography(pts1, pts2, cv2.RANSAC)
+        Homo, _ = cv2.findHomography(pts1, pts2, cv2.RANSAC)
 
-        pts2_pred = cv2.perspectiveTransform(pts1[None, :, :], H)[0]
+        pts2_pred = cv2.perspectiveTransform(pts1[None, :, :], Homo)[0]
         res = np.linalg.norm(pts2 - pts2_pred, axis=1)
 
         # # median residual flow after removing global motion
@@ -173,7 +192,7 @@ def read_map_points(filepath: str) -> int:
 
 
 def analyze_sequence(folder): 
-    images = load_images(folder)
+    images = load_images(folder + "/rgb/")
     print(f"Loaded {len(images)} frames.")
     res_dict = extract_motions(images)
 
@@ -187,20 +206,131 @@ def analyze_sequence(folder):
     res_dict["mean n features in frame 1"] = np.mean(res_dict["n_features_in_frame_1"])
     res_dict["n map points"] = read_map_points(os.path.join(folder, "../map_orb_slam3.txt"))
 
+    store_results(res_dict, folder, plot=False)
+
     return res_dict
 
 
+def store_results(res_dict, output_folder, plot=False):
+
+    colors = sns.color_palette("coolwarm", n_colors=10)
+
+    times = np.arange(len(res_dict["wobble_index"]))/6.0  # assuming 6 FPS
+    fig_wobble = plt.figure()
+    ax_wobble = fig_wobble.add_subplot(111)
+    ax_wobble.plot(times, res_dict["wobble_index"], label="Wobble Index", color=colors[0],  linewidth=1, zorder=2)
+    ax_wobble.set_xlabel(r"$t (s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax_wobble.set_ylabel(r"Wobble Index", labelpad=LABELPADS, fontsize=FONTSIZE)
+    # ax_wobble.legend(loc="best", ncol=2, fontsize=LABELSIZE)
+    ax_wobble.tick_params(labelsize=LABELSIZE)
+    fig_wobble.savefig(os.path.join(output_folder, "wobble_index.pdf"), format='pdf')
+
+
+    fig_blur_varlap = plt.figure()
+    ax_blur_varlap = fig_blur_varlap.add_subplot(111)
+    ax_blur_varlap.plot(times, res_dict["blur_varlap"], color=colors[0],  linewidth=1, zorder=2)
+    ax_blur_varlap.set_xlabel(r"$t (s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax_blur_varlap.set_ylabel(r"$\sigma^2 (\nabla^2(\mathcal{I}))$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    # ax_blur_varlap.legend(loc="best", ncol=2, fontsize=LABELSIZE)    plt.grid()
+    ax_blur_varlap.tick_params(labelsize=LABELSIZE)
+    ax_blur_varlap.grid()
+    fig_blur_varlap.savefig(os.path.join(output_folder, "blur_varlap.pdf"), format='pdf')
+
+    fig_blur_freq_ratio = plt.figure()
+    ax_blur_freq_ratio = fig_blur_freq_ratio.add_subplot(111)
+    ax_blur_freq_ratio.plot(times, res_dict["blur_freq_ratio"], color=colors[0],  linewidth=1, zorder=2)
+    ax_blur_freq_ratio.set_xlabel(r"$t (s)$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    ax_blur_freq_ratio.set_ylabel(r"$\rho_{blur}$", labelpad=LABELPADS, fontsize=FONTSIZE)
+    # ax_blur_freq_ratio.legend(loc="best", ncol=2, fontsize=LABELSIZE)
+    ax_blur_freq_ratio.tick_params(labelsize=LABELSIZE)
+    ax_blur_freq_ratio.grid()
+    fig_blur_freq_ratio.savefig(os.path.join(output_folder, "blur_freq_ratio.pdf"), format='pdf')
+
+    fig_psd = []
+    for key, (f, Pxx) in res_dict["psd"].items():
+        fig = plt.figure()
+        plt.semilogy(f, Pxx)
+        plt.title(f"PSD of {key}")
+        plt.xlabel("Frequency (Hz)")
+        fig_psd.append(fig)
+        plt.ylabel("Power Spectral Density")
+        plt.grid()
+
+        plt.savefig(os.path.join(output_folder, f"psd_{key}.pdf"), format='pdf')
+    
+    # plot matched features (counts) and per-frame residuals
+    # fig_features = plt.figure(figsize=[3.3, 3.3])
+    fig_features = plt.figure()
+    ax_features = fig_features.add_subplot(111)
+
+    nm = res_dict.get("n_matches", np.array([]))
+    f0 = res_dict.get("n_features_in_frame_0", np.array([]))
+    f1 = res_dict.get("n_features_in_frame_1", np.array([]))
+
+    if nm.size:
+        ax_features.plot(times, nm, color=colors[0], linewidth=0.5, marker='o', markersize=0.3, label=r"\# Match")
+    if f0.size:
+        ax_features.plot(times, f0, linewidth=0.5, color="#FE6244", linestyle='-.', label=r"\# $\mathcal{I}_{i}$")
+    if f1.size:
+        ax_features.plot(times, f1, linewidth=0.5, color="#060771", linestyle=':', label=r"\# $\mathcal{I}_{i+1}$")
+
+    # ax_features.set_title("Matched features and detected features per frame")
+    ax_features.set_xlabel("$t (s)$")
+    ax_features.set_ylabel("Feature Count")
+    ax_features.legend(loc="best", ncol=1, fontsize=LABELSIZE)
+    ax_features.tick_params(labelsize=LABELSIZE)
+    ax_features.set_xlim(left=0)
+    ax_features.set_ylim(bottom=0)
+    ax_features.grid(True)
+
+    fig_features.savefig(os.path.join(output_folder, "features.pdf"), format='pdf')
+
+    fig_residuals = plt.figure()
+    ax_residuals = fig_residuals.add_subplot(111)
+    res = res_dict.get("residuals", np.array([]))
+
+    if res.size:
+        x = np.arange(len(res))
+        ax_residuals.plot(times, res, '-o', markersize=0.3, linewidth=0.5, color=colors[0], label="Med.")
+        p95 = np.percentile(res, 95)
+        ax_residuals.axhline(p95, color='r', linewidth=0.5, linestyle='--', label=r"$\mathbf{r}_{95}$") #+ f"{p95:.2f}")
+    else:
+        plt.text(0.5, 0.5, "No residuals available", ha="center", va="center")
+
+    ax_residuals.set_xlabel(r"$t (s)$")
+    ax_residuals.set_xlim(left=0)
+    ax_residuals.set_ylim(bottom=0)
+    ax_residuals.set_ylabel(r"Residual $(px)$")
+    ax_residuals.legend(loc="best", ncol=2, fontsize=LABELSIZE)
+    ax_residuals.tick_params(labelsize=LABELSIZE)
+    ax_residuals.grid(True)
+
+    fig_residuals.savefig(os.path.join(output_folder, "residuals.pdf"), format='pdf')
+
+    plt.show()
+
+
+
 def main(folder):
-    images = load_images(folder)
+
+    rgb_folder = folder + "/rgb/"
+
+    images = load_images(rgb_folder)
+
     print(f"Loaded {len(images)} frames.")
+
     res_dict = extract_motions(images, plot_matches=True)
+
     # J_vis = compute_shakiness(motions)
     # print(f"Visual shakiness (RMS residual angle, deg): {np.degrees(J_vis):.3f}")
+
     print(f"Mean wobble : {np.mean(res_dict['wobble_index']):.3f}")
     print(f"Mean blur variance (Laplacian): {np.mean(res_dict['blur_varlap']):.3f}")
     print(f"Mean blur frequency ratio: {np.mean(res_dict['blur_freq_ratio']):.3f}")
     print(f"Median tracking residual (pixels): {np.median(res_dict['residuals']):.3f}")
     print(f"95th percentile tracking residual (pixels): {np.percentile(res_dict['residuals'],95):.3f}")
+
+    store_results(res_dict, folder, plot=True) 
 
 if __name__ == "__main__":
     import argparse
@@ -208,6 +338,8 @@ if __name__ == "__main__":
     parser.add_argument("folder", help="Path to directory with sequential images")
     args = parser.parse_args()
     main(args.folder)
+
+# python3 src/unseen_eval/unseen_eval/visual_evaluation.py bags/dataset/rosbag2_2025_08_08-14_12_12/
 
 """
 Use two signals from your frames:
